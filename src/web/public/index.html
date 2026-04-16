@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAC-MEMORY // Autonomous Knowledge System</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="scanline"></div>
+  <div id="app">
+
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <span class="logo">PAC<span class="accent">-</span>MEMORY</span>
+        <span class="tagline">// autonomous knowledge system</span>
+      </div>
+      <div class="header-right">
+        <span id="ws-status" class="badge badge-offline">● OFFLINE</span>
+        <span id="clock" class="clock"></span>
+      </div>
+    </header>
+
+    <!-- Stats bar -->
+    <div id="stats-bar">
+      <div class="stat"><span class="stat-label">KNOWLEDGE</span><span id="stat-total" class="stat-value">—</span></div>
+      <div class="stat"><span class="stat-label">AGENTS</span><span id="stat-agents" class="stat-value">—</span></div>
+      <div class="stat"><span class="stat-label">EVOLUTIONS</span><span id="stat-evolutions" class="stat-value">—</span></div>
+      <div class="stat"><span class="stat-label">UPTIME</span><span id="stat-uptime" class="stat-value">00:00:00</span></div>
+    </div>
+
+    <!-- Main grid -->
+    <main id="main-grid">
+
+      <!-- Left: Knowledge Panel -->
+      <section class="panel" id="panel-knowledge">
+        <div class="panel-header">
+          <span class="panel-title">// KNOWLEDGE BASE</span>
+          <div class="panel-controls">
+            <select id="cat-filter" class="terminal-select">
+              <option value="">ALL CATEGORIES</option>
+              <option value="hardware">hardware</option>
+              <option value="software">software</option>
+              <option value="network">network</option>
+              <option value="security">security</option>
+              <option value="ai-ml">ai-ml</option>
+              <option value="devops">devops</option>
+              <option value="programming">programming</option>
+              <option value="github">github</option>
+              <option value="environment">environment</option>
+              <option value="system-info">system-info</option>
+              <option value="news">news</option>
+              <option value="updates">updates</option>
+              <option value="tools">tools</option>
+              <option value="performance">performance</option>
+              <option value="configuration">configuration</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-bar">
+          <span class="search-prompt">❯</span>
+          <input type="text" id="search-input" class="search-input" placeholder="search knowledge base..." autocomplete="off" spellcheck="false" />
+          <button id="search-btn" class="btn-term">SEARCH</button>
+        </div>
+
+        <div id="knowledge-list" class="scroll-area"></div>
+        <div class="panel-footer">
+          <button class="btn-term-ghost" id="btn-load-more">LOAD MORE</button>
+        </div>
+      </section>
+
+      <!-- Center: Live Log -->
+      <section class="panel" id="panel-log">
+        <div class="panel-header">
+          <span class="panel-title">// LIVE LOG</span>
+          <button class="btn-icon" id="btn-clear-log" title="Clear log">✕</button>
+        </div>
+        <div id="log-list" class="scroll-area log-area"></div>
+      </section>
+
+      <!-- Right: Agents + Evolution -->
+      <section class="panel" id="panel-right">
+
+        <!-- Agents -->
+        <div class="sub-panel">
+          <div class="panel-header">
+            <span class="panel-title">// AGENTS</span>
+            <button class="btn-term-sm" id="btn-refresh-agents">↺</button>
+          </div>
+          <div id="agent-list" class="agent-list"></div>
+        </div>
+
+        <!-- Evolution -->
+        <div class="sub-panel">
+          <div class="panel-header">
+            <span class="panel-title">// EVOLUTION LOG</span>
+          </div>
+          <div id="evolution-list" class="scroll-area evo-area"></div>
+        </div>
+
+        <!-- AI Suggestions -->
+        <div class="sub-panel">
+          <div class="panel-header">
+            <span class="panel-title">// AI SUGGEST</span>
+            <button class="btn-term-sm" id="btn-suggest">ASK</button>
+          </div>
+          <div id="suggest-input-wrap">
+            <input type="text" id="suggest-input" class="search-input" placeholder="ask about your knowledge..." />
+          </div>
+          <div id="suggest-output" class="suggest-output"></div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{ "template": "Classify the following knowledge entry into exactly ONE of these categories: hardware, software, network, security, ai-ml, devops, programming, github, environment, system-info, news, updates, tools, performance, configuration.\nReply with ONLY the category name, nothing else.\nTitle: {title}\nContent: {content}" }
