@@ -119,6 +119,32 @@
     </main>
   </div>
 
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-container">
+      <div class="modal-header">
+        <span id="modal-title" class="modal-title">// KNOWLEDGE_DETAIL</span>
+        <button id="modal-close" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-content scroll-area">
+        <div class="modal-section">
+          <span class="modal-section-label">❯ SUMMARY</span>
+          <div id="modal-summary" class="modal-text modal-summary-text"></div>
+        </div>
+        <div class="modal-separator"></div>
+        <div class="modal-section">
+          <span class="modal-section-label">❯ ORIGINAL CONTENT</span>
+          <div id="modal-original" class="modal-text"></div>
+        </div>
+        <div class="modal-meta">
+          <div class="modal-meta-item"><span class="modal-meta-label">SOURCE:</span> <span id="modal-source"></span></div>
+          <div class="modal-meta-item"><span class="modal-meta-label">CATEGORY:</span> <span id="modal-category"></span></div>
+          <div class="modal-meta-item"><span class="modal-meta-label">UPDATED:</span> <span id="modal-updated"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

@@ -115,14 +115,15 @@ function renderKnowledgeItems(items) {
     const div = document.createElement('div')
     div.className = 'knowledge-item'
     const score = (item.importance_score * 100).toFixed(0)
-    const content = item.content.slice(0, 180) + (item.content.length > 180 ? '…' : '')
+    // Show summary in preview if available, otherwise content
+    const preview = (item.summary || item.content).slice(0, 180) + ((item.summary || item.content).length > 180 ? '…' : '')
     div.innerHTML = `
       <div class="ki-header">
         <span class="ki-cat">${escHtml(item.category)}</span>
         <span class="ki-title">${escHtml(item.title)}</span>
         <span class="ki-score">${score}%</span>
       </div>
-      <div class="ki-content">${escHtml(content)}</div>
+      <div class="ki-content">${escHtml(preview)}</div>
       <div class="ki-source">↳ ${escHtml(item.source)} · ${item.updated_at?.slice(0,16) ?? ''}</div>
     `
     div.addEventListener('click', () => showKnowledgeDetail(item))
@@ -131,9 +132,36 @@ function renderKnowledgeItems(items) {
 }
 
 function showKnowledgeDetail(item) {
-  // Display full content in suggest-output panel
-  const out = document.getElementById('suggest-output')
-  out.textContent = `[${item.category}] ${item.title}\n\n${item.content}\n\nSource: ${item.source}\nUpdated: ${item.updated_at}`
+  const modal = document.getElementById('modal-overlay')
+  const title = document.getElementById('modal-title')
+  const summary = document.getElementById('modal-summary')
+  const original = document.getElementById('modal-original')
+  const source = document.getElementById('modal-source')
+  const category = document.getElementById('modal-category')
+  const updated = document.getElementById('modal-updated')
+
+  title.textContent = `// ${item.title.toUpperCase()}`
+  summary.textContent = item.summary || 'Nenhum resumo disponível para esta entrada.'
+  original.textContent = item.content
+  source.textContent = item.source
+  category.textContent = item.category
+  updated.textContent = item.updated_at
+
+  modal.classList.remove('hidden')
+}
+
+// Modal Close logic
+bindClick('modal-close', () => {
+  document.getElementById('modal-overlay').classList.add('hidden')
+})
+
+const modalOverlay = document.getElementById('modal-overlay')
+if (modalOverlay) {
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+      modalOverlay.classList.add('hidden')
+    }
+  })
 }
 
 bindClick('btn-load-more', () => loadKnowledge())

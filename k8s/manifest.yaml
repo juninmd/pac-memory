@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pac-memory
+  namespace: pac-memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pac-memory
+  template:
+    metadata:
+      labels:
+        app: pac-memory
+    spec:
+      containers:
+      - name: pac-memory
+        image: ghcr.io/juninmd/pac-memory:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - secretRef:
+            name: pac-memory-secrets
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: pac-memory-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pac-memory
+  namespace: pac-memory
+spec:
+  selector:
+    app: pac-memory
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
