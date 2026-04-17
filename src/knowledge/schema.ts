@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS knowledge (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   title           TEXT    NOT NULL,
   content         TEXT    NOT NULL,
+  summary         TEXT    NOT NULL DEFAULT '',
   category        TEXT    NOT NULL DEFAULT 'uncategorized',
   source          TEXT    NOT NULL,
   metadata        TEXT    NOT NULL DEFAULT '{}',
@@ -12,24 +13,24 @@ CREATE TABLE IF NOT EXISTS knowledge (
 );
 
 CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
-  title, content,
+  title, content, summary,
   content='knowledge',
   content_rowid='id'
 );
 
 CREATE TRIGGER IF NOT EXISTS knowledge_ai AFTER INSERT ON knowledge BEGIN
-  INSERT INTO knowledge_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
+  INSERT INTO knowledge_fts(rowid, title, content, summary) VALUES (new.id, new.title, new.content, new.summary);
 END;
 
 CREATE TRIGGER IF NOT EXISTS knowledge_ad AFTER DELETE ON knowledge BEGIN
-  INSERT INTO knowledge_fts(knowledge_fts, rowid, title, content)
-    VALUES ('delete', old.id, old.title, old.content);
+  INSERT INTO knowledge_fts(knowledge_fts, rowid, title, content, summary)
+    VALUES ('delete', old.id, old.title, old.content, old.summary);
 END;
 
 CREATE TRIGGER IF NOT EXISTS knowledge_au AFTER UPDATE ON knowledge BEGIN
-  INSERT INTO knowledge_fts(knowledge_fts, rowid, title, content)
-    VALUES ('delete', old.id, old.title, old.content);
-  INSERT INTO knowledge_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
+  INSERT INTO knowledge_fts(knowledge_fts, rowid, title, content, summary)
+    VALUES ('delete', old.id, old.title, old.content, old.summary);
+  INSERT INTO knowledge_fts(rowid, title, content, summary) VALUES (new.id, new.title, new.content, new.summary);
 END;
 
 CREATE TABLE IF NOT EXISTS sources (

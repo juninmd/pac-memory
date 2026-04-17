@@ -267,8 +267,8 @@ html, body {
 .evo-reason { color: var(--text-dim); font-size: 9px; margin-top: 1px; }
 
 /* ─── Suggest area ───────────────────────────────────────────────────── */
-#suggest-input-wrap { padding: 6px 10px; border-top: var(--border); }
-.suggest-output {
+#suggest-input-wrap, #qa-input-wrap { padding: 6px 10px; border-top: var(--border); }
+.suggest-output, #qa-output {
   padding: 8px 10px;
   color: var(--text);
   font-size: 11px;
@@ -277,6 +277,26 @@ html, body {
   max-height: 150px;
   overflow-y: auto;
   border-top: var(--border);
+}
+.qa-sources {
+  padding: 8px 10px;
+  border-top: var(--border);
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.qa-sources-title {
+  color: var(--green);
+  margin-bottom: 4px;
+  display: block;
+}
+.qa-source-item {
+  margin-bottom: 4px;
+}
+.qa-source-meta {
+  display: block;
+  color: var(--text-dim);
+  font-size: 9px;
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────────── */

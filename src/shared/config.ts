@@ -17,4 +17,5 @@ export const cfg = {
   dbPath: optional('DB_PATH', 'data/pac-memory.db'),
   generatedDir: optional('GENERATED_DIR', 'generated'),
   promptsDir: optional('PROMPTS_DIR', 'prompts'),
+  geminiModel: optional('GEMINI_MODEL', 'gemini-1.5-flash'),
 }

@@ -8,6 +8,7 @@ import { collectEnvVars } from './env.agent.js'
 import { collectWebMonitor } from './web-monitor.agent.js'
 import { bulkUpsert, startAgentRun, finishAgentRun } from '../knowledge/repository.js'
 import { categorize } from '../knowledge/categorizer.js'
+import { summarize } from '../knowledge/summarizer.js'
 import { analyzeGaps } from '../evolution/gap-analyzer.js'
 import { generateCollector } from '../evolution/code-generator.js'
 import { deployCollector } from '../evolution/deployer.js'
@@ -127,21 +128,28 @@ async function runCollector(
   try {
     const items = await fn()
 
-    // Categorize uncategorized items via Gemini if available
-    const categorized = await Promise.all(
+    // Process items: summarize and categorize via Gemini if available
+    const processed = await Promise.all(
       items.map(async (item) => {
-        if (item.category === 'uncategorized' && cfg.geminiApiKey) {
-          item.category = await categorize(item.title, item.content)
+        if (cfg.geminiApiKey) {
+          // Generate summary if missing
+          if (!item.summary) {
+            item.summary = await summarize(item.title, item.content)
+          }
+          // Categorize if uncategorized
+          if (item.category === 'uncategorized') {
+            item.category = await categorize(item.title, item.content)
+          }
         }
         return item
       })
     )
 
-    bulkUpsert(categorized)
-    finishAgentRun(runId, categorized.length)
-    orchestratorEvents.emit('agent', { name, status: 'completed', count: categorized.length })
-    log.info({ agent: name, count: categorized.length }, 'Collection complete')
-    return categorized
+    bulkUpsert(processed)
+    finishAgentRun(runId, processed.length)
+    orchestratorEvents.emit('agent', { name, status: 'completed', count: processed.length })
+    log.info({ agent: name, count: processed.length }, 'Collection complete')
+    return processed
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     finishAgentRun(runId, 0, msg)

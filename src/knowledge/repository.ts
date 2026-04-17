@@ -12,16 +12,16 @@ export function upsertKnowledge(item: KnowledgeInput): number {
 
   if (existing) {
     db.prepare(`
-      UPDATE knowledge SET content=?, category=?, metadata=?, importance_score=?, updated_at=datetime('now')
+      UPDATE knowledge SET content=?, summary=?, category=?, metadata=?, importance_score=?, updated_at=datetime('now')
       WHERE id=?
-    `).run(item.content, item.category, JSON.stringify(item.metadata), item.importance_score, existing.id)
+    `).run(item.content, item.summary ?? '', item.category, JSON.stringify(item.metadata), item.importance_score, existing.id)
     return existing.id
   }
 
   const result = db.prepare(`
-    INSERT INTO knowledge (title, content, category, source, metadata, importance_score)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(item.title, item.content, item.category, item.source, JSON.stringify(item.metadata), item.importance_score)
+    INSERT INTO knowledge (title, content, summary, category, source, metadata, importance_score)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(item.title, item.content, item.summary ?? '', item.category, item.source, JSON.stringify(item.metadata), item.importance_score)
 
   return result.lastInsertRowid as number
 }
@@ -38,9 +38,9 @@ export function searchKnowledge(query: string, limit = 20): Knowledge[] {
   const db = getDb()
   const rows = db.prepare(`
     SELECT k.* FROM knowledge k
-    JOIN knowledge_fts f ON f.rowid = k.id
+    JOIN knowledge_fts ON knowledge_fts.rowid = k.id
     WHERE knowledge_fts MATCH ?
-    ORDER BY rank
+    ORDER BY bm25(knowledge_fts)
     LIMIT ?
   `).all(query, limit) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
 

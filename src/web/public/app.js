@@ -77,8 +77,23 @@ function appendLog(source, msg, type = 'log') {
   while (list.children.length > 200) list.removeChild(list.lastChild)
 }
 
-document.getElementById('btn-clear-log').addEventListener('click', () => {
-  document.getElementById('log-list').innerHTML = ''
+function bindClick(id, fn) {
+  const el = document.getElementById(id)
+  if (el) el.addEventListener('click', fn)
+}
+
+function bindKey(id, key, fn) {
+  const el = document.getElementById(id)
+  if (el) {
+    el.addEventListener('keydown', (ev) => {
+      if (ev.key === key) fn()
+    })
+  }
+}
+
+bindClick('btn-clear-log', () => {
+  const logList = document.getElementById('log-list')
+  if (logList) logList.innerHTML = ''
 })
 
 // ─── Knowledge ─────────────────────────────────────────────────────────────
@@ -121,13 +136,19 @@ function showKnowledgeDetail(item) {
   out.textContent = `[${item.category}] ${item.title}\n\n${item.content}\n\nSource: ${item.source}\nUpdated: ${item.updated_at}`
 }
 
-document.getElementById('btn-load-more').addEventListener('click', () => loadKnowledge())
-document.getElementById('cat-filter').addEventListener('change', () => loadKnowledge(true))
+bindClick('btn-load-more', () => loadKnowledge())
+const catFilter = document.getElementById('cat-filter')
+if (catFilter) {
+  catFilter.addEventListener('change', () => loadKnowledge(true))
+}
 
 // ─── Search ────────────────────────────────────────────────────────────────
 
 async function doSearch() {
-  const query = document.getElementById('search-input').value.trim()
+  const searchInput = document.getElementById('search-input')
+  if (!searchInput) return
+
+  const query = searchInput.value.trim()
   if (!query) { loadKnowledge(true); return }
 
   const data = await fetchJson('/api/search', {
@@ -137,16 +158,67 @@ async function doSearch() {
   })
   if (!data) return
 
-  document.getElementById('knowledge-list').innerHTML = ''
+  const knowledgeList = document.getElementById('knowledge-list')
+  if (knowledgeList) knowledgeList.innerHTML = ''
   renderKnowledgeItems(data.items)
   appendLog('search', `"${query}" → ${data.items.length} results`, 'agent')
 }
 
-document.getElementById('search-btn').addEventListener('click', doSearch)
-document.getElementById('search-input').addEventListener('keydown', (ev) => {
+const searchBtn = document.getElementById('search-btn')
+const searchInputEl = document.getElementById('search-input')
+const qaButton = document.getElementById('btn-qa')
+const qaInputEl = document.getElementById('qa-input')
+
+if (searchBtn) searchBtn.addEventListener('click', doSearch)
+if (searchInputEl) searchInputEl.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter') doSearch()
 })
+if (qaButton) qaButton.addEventListener('click', doQa)
+if (qaInputEl) qaInputEl.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') doQa()
+})
 
+async function doQa() {
+  const qaInput = document.getElementById('qa-input')
+  const output = document.getElementById('qa-output')
+  const sources = document.getElementById('qa-sources')
+  if (!qaInput || !output || !sources) return
+
+  const question = qaInput.value.trim()
+  if (!question) {
+    output.textContent = 'Digite uma pergunta para obter resposta.'
+    sources.innerHTML = ''
+    return
+  }
+
+  output.textContent = '⟳ consultando o conhecimento…'
+  sources.innerHTML = ''
+
+  const data = await fetchJson('/api/qa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, limit: 6 }),
+  })
+
+  if (!data) {
+    output.textContent = 'Erro ao consultar o servidor.'
+    return
+  }
+
+  if (data.error) {
+    output.textContent = `Erro: ${data.error}`
+    return
+  }
+
+  output.textContent = data.answer || 'Nenhuma resposta gerada.'
+  if (data.sources && data.sources.length) {
+    sources.innerHTML = '<div class="qa-sources-title">Fontes usadas:</div>' + data.sources.map((src) => {
+      return `<div class="qa-source-item">• ${escHtml(src.title)} <span class="qa-source-meta">[${escHtml(src.category)}] ${escHtml(src.source)}</span></div>`
+    }).join('')
+  } else {
+    sources.innerHTML = ''
+  }
+}
 // ─── Agents ────────────────────────────────────────────────────────────────
 
 async function refreshAgents() {
@@ -178,7 +250,7 @@ async function refreshAgents() {
   }
 }
 
-document.getElementById('btn-refresh-agents').addEventListener('click', refreshAgents)
+bindClick('btn-refresh-agents', refreshAgents)
 
 // ─── Evolution ─────────────────────────────────────────────────────────────
 
@@ -203,10 +275,17 @@ async function refreshEvolution() {
 
 // ─── AI Suggestions ────────────────────────────────────────────────────────
 
-document.getElementById('btn-suggest').addEventListener('click', async () => {
-  const query = document.getElementById('suggest-input').value.trim()
-  if (!query) return
+bindClick('btn-suggest', async () => {
+  const suggestInput = document.getElementById('suggest-input')
   const out = document.getElementById('suggest-output')
+  if (!suggestInput || !out) return
+
+  const query = suggestInput.value.trim()
+  if (!query) {
+    out.textContent = ''
+    return
+  }
+
   out.textContent = '⟳ thinking...'
 
   const data = await fetchJson('/api/search', {
@@ -224,8 +303,9 @@ document.getElementById('btn-suggest').addEventListener('click', async () => {
   out.textContent = `Found ${data.items.length} relevant entries:\n\n${context}`
 })
 
-document.getElementById('suggest-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('btn-suggest').click()
+bindKey('suggest-input', 'Enter', () => {
+  const btn = document.getElementById('btn-suggest')
+  if (btn) btn.click()
 })
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
@@ -266,8 +346,13 @@ function escHtml(str) {
 async function fetchJson(url, options) {
   try {
     const resp = await fetch(url, options)
-    if (!resp.ok) { appendLog('api', `HTTP ${resp.status} on ${url}`, 'error'); return null }
-    return await resp.json()
+    const text = await resp.text()
+    const json = text ? JSON.parse(text) : null
+    if (!resp.ok) {
+      appendLog('api', `HTTP ${resp.status} on ${url}${json?.error ? ` - ${json.error}` : ''}`, 'error')
+      return json
+    }
+    return json
   } catch (err) {
     appendLog('api', `Fetch error: ${err.message}`, 'error')
     return null

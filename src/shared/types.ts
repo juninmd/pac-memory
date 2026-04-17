@@ -2,6 +2,7 @@ export interface Knowledge {
   id: number
   title: string
   content: string
+  summary: string
   category: string
   source: string
   metadata: Record<string, unknown>
@@ -10,7 +11,7 @@ export interface Knowledge {
   updated_at: string
 }
 
-export type KnowledgeInput = Omit<Knowledge, 'id' | 'created_at' | 'updated_at'>
+export type KnowledgeInput = Omit<Knowledge, 'id' | 'created_at' | 'updated_at' | 'summary'> & { summary?: string }
 
 export interface Source {
   id: number

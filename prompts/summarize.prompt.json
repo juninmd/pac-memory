@@ -1,0 +1,4 @@
+{
+  "template": "Resuma a seguinte informação técnica de forma concisa (máximo 2 parágrafos). Foque nos pontos principais e fatos técnicos.\n\nTítulo: {title}\nConteúdo: {content}\n\nResumo:",
+  "description": "Prompt for generating concise technical summaries"
+}

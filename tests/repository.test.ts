@@ -9,6 +9,7 @@ process.env.DB_PATH = 'data/test-pac-memory.db'
 const sample: KnowledgeInput = {
   title: 'Test Knowledge Entry',
   content: 'This is a test content for FTS5 search verification',
+  summary: 'Concise summary of test content',
   category: 'testing',
   source: 'test-suite',
   metadata: { test: true },
@@ -17,8 +18,7 @@ const sample: KnowledgeInput = {
 
 describe('Knowledge Repository', () => {
   beforeEach(() => {
-    mkdirSync('data', { recursive: true })
-    const db = getDb()
+    const db = getDb(':memory:')
     // Truncate all tables for a clean state each test
     db.exec("DELETE FROM knowledge; DELETE FROM knowledge_fts; DELETE FROM agent_runs; DELETE FROM evolution_log;")
     db.exec("INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')")
@@ -26,6 +26,24 @@ describe('Knowledge Repository', () => {
 
   afterEach(() => {
     closeDb()
+  })
+
+  it('upserts and retrieves a knowledge entry with summary', () => {
+    const id = upsertKnowledge(sample)
+    expect(id).toBeGreaterThan(0)
+    const db = getDb()
+    const row = db.prepare('SELECT * FROM knowledge WHERE id = ?').get(id) as any
+    expect(row.summary).toBe(sample.summary)
+    expect(countKnowledge()).toBe(1)
+  })
+
+  it('updates summary on re-upsert', () => {
+    upsertKnowledge(sample)
+    const updatedSummary = 'Updated concise summary'
+    upsertKnowledge({ ...sample, summary: updatedSummary })
+    const db = getDb()
+    const row = db.prepare('SELECT summary FROM knowledge WHERE title = ? AND source = ?').get(sample.title, sample.source) as any
+    expect(row.summary).toBe(updatedSummary)
   })
 
   it('upserts and retrieves a knowledge entry', () => {

@@ -9,19 +9,21 @@ const log = childLogger('database')
 
 let instance: Database.Database | null = null
 
-export function getDb(): Database.Database {
+export function getDb(path: string = cfg.dbPath): Database.Database {
   if (instance) return instance
 
-  mkdirSync(dirname(cfg.dbPath), { recursive: true })
+  if (path !== ':memory:') {
+    mkdirSync(dirname(path), { recursive: true })
+  }
 
-  const db = new Database(cfg.dbPath)
+  const db = new Database(path)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.pragma('synchronous = NORMAL')
 
   db.exec(DDL)
 
-  log.info({ path: cfg.dbPath }, 'SQLite connected')
+  log.info({ path }, 'SQLite connected')
   instance = db
   return db
 }
