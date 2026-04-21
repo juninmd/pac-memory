@@ -47,6 +47,7 @@ function handleWsMessage(msg) {
   } else if (event === 'evolution') {
     appendLog(`evolution:${data.phase}`, `${data.feature ? data.feature + ' — ' : ''}${data.status}`, 'evolution')
     refreshEvolution()
+    refreshDigest()
   } else if (event === 'connected') {
     appendLog('system', data.message, 'success')
   }
@@ -148,6 +149,7 @@ function showKnowledgeDetail(item) {
   updated.textContent = item.updated_at
 
   modal.classList.remove('hidden')
+  loadRelatedKnowledge(item.id)
 }
 
 // Modal Close logic
@@ -204,6 +206,12 @@ if (searchInputEl) searchInputEl.addEventListener('keydown', (ev) => {
 if (qaButton) qaButton.addEventListener('click', doQa)
 if (qaInputEl) qaInputEl.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter') doQa()
+})
+
+bindClick('btn-run-collect', () => runControlTask('collect'))
+bindClick('btn-run-evolve', () => runControlTask('evolve'))
+bindClick('btn-export-md', () => {
+  location.href = '/api/export/digest?format=markdown'
 })
 
 async function doQa() {
@@ -301,6 +309,94 @@ async function refreshEvolution() {
   }
 }
 
+// ─── Intelligence Digest ─────────────────────────────────────────────────
+
+async function refreshDigest() {
+  const data = await fetchJson('/api/intelligence/digest')
+  if (!data) return
+
+  const avg = Math.round((data.averageImportance || 0) * 100)
+  const critical = data.insights.filter((insight) => insight.severity === 'critical').length
+  const warning = data.insights.filter((insight) => insight.severity === 'warning').length
+  const health = critical ? 'CRITICAL' : warning ? 'WATCH' : 'OK'
+
+  document.getElementById('stat-total').textContent = data.total
+  document.getElementById('stat-value').textContent = `${avg}%`
+  document.getElementById('stat-health').textContent = health
+  document.getElementById('intel-categories').textContent = data.categories.length
+  document.getElementById('intel-sources').textContent = data.sources.length
+  document.getElementById('intel-stale').textContent = data.freshness.staleCount
+
+  renderInsights(data.insights)
+  renderTopKnowledge(data.topKnowledge)
+}
+
+function renderInsights(insights) {
+  const list = document.getElementById('insight-list')
+  if (!list) return
+  list.innerHTML = ''
+
+  for (const insight of insights.slice(0, 4)) {
+    const div = document.createElement('div')
+    div.className = `insight insight-${insight.severity}`
+    div.innerHTML = `
+      <div class="insight-title">${escHtml(insight.title)}</div>
+      <div class="insight-detail">${escHtml(insight.detail)}</div>
+      <div class="insight-action">${escHtml(insight.action)}</div>
+    `
+    list.appendChild(div)
+  }
+}
+
+function renderTopKnowledge(items) {
+  const list = document.getElementById('top-knowledge-list')
+  if (!list) return
+  list.innerHTML = ''
+
+  for (const item of items.slice(0, 6)) {
+    const button = document.createElement('button')
+    button.className = 'top-item'
+    button.innerHTML = `
+      <span>${escHtml(item.title)}</span>
+      <small>${escHtml(item.category)} · ${Math.round(item.importance_score * 100)}%</small>
+    `
+    button.addEventListener('click', () => showKnowledgeDetail(item))
+    list.appendChild(button)
+  }
+}
+
+async function loadRelatedKnowledge(id) {
+  const related = document.getElementById('modal-related')
+  if (!related) return
+  related.textContent = 'Carregando relacionados...'
+
+  const data = await fetchJson(`/api/knowledge/${id}/related?limit=6`)
+  if (!data || !data.items.length) {
+    related.textContent = 'Nenhuma entrada relacionada encontrada.'
+    return
+  }
+
+  related.innerHTML = data.items.map((item) => {
+    return `<button class="related-item" data-id="${item.id}">
+      <span>${escHtml(item.title)}</span>
+      <small>${escHtml(item.category)} · ${escHtml(item.source)}</small>
+    </button>`
+  }).join('')
+
+  for (const button of related.querySelectorAll('.related-item')) {
+    const relatedItem = data.items.find((item) => String(item.id) === button.dataset.id)
+    if (relatedItem) button.addEventListener('click', () => showKnowledgeDetail(relatedItem))
+  }
+}
+
+async function runControlTask(task) {
+  appendLog('control', `starting ${task}...`, 'agent')
+  const data = await fetchJson(`/api/control/${task}`, { method: 'POST' })
+  if (data?.accepted) {
+    appendLog('control', `${task} accepted by server`, 'success')
+  }
+}
+
 // ─── AI Suggestions ────────────────────────────────────────────────────────
 
 bindClick('btn-suggest', async () => {
@@ -395,6 +491,7 @@ async function init() {
   await refreshAgents()
   await refreshEvolution()
   await refreshStats()
+  await refreshDigest()
 
   updateClock()
   updateUptime()
@@ -402,6 +499,7 @@ async function init() {
   setInterval(updateUptime, 1000)
   setInterval(refreshAgents, 15000)
   setInterval(refreshEvolution, 30000)
+  setInterval(refreshDigest, 30000)
   setInterval(refreshStats, 60000)
 }
 

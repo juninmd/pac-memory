@@ -7,7 +7,9 @@ import { startWebServer } from '../web/server.js'
 import { analyzeGaps } from '../evolution/gap-analyzer.js'
 import { generateCollector } from '../evolution/code-generator.js'
 import { deployCollector } from '../evolution/deployer.js'
+import { buildKnowledgeDigest, exportDigestMarkdown } from '../knowledge/insights.js'
 import { childLogger } from '../shared/logger.js'
+import { writeFileSync } from 'fs'
 
 const log = childLogger('cli')
 
@@ -123,6 +125,38 @@ yargs(hideBin(process.argv))
     console.log()
     closeDb()
   })
+
+  .command('insights', 'Show local intelligence signals about the knowledge base', {}, async () => {
+    getDb()
+    const digest = buildKnowledgeDigest()
+    console.log(`\nPAC-MEMORY intelligence digest`)
+    console.log(`Entries: ${digest.total}`)
+    console.log(`Average importance: ${(digest.averageImportance * 100).toFixed(1)}%`)
+    console.log(`Stale entries: ${digest.freshness.staleCount}`)
+    console.log('\nSignals:')
+    digest.insights.forEach((insight) => {
+      console.log(`  [${insight.severity}] ${insight.title}`)
+      console.log(`    ${insight.detail}`)
+      console.log(`    action: ${insight.action}`)
+    })
+    console.log('\nTop categories:')
+    digest.categories.slice(0, 8).forEach((category) => {
+      console.log(`  ${category.category.padEnd(16)} ${String(category.count).padStart(4)} avg=${(category.avg_importance * 100).toFixed(0)}%`)
+    })
+    console.log()
+    closeDb()
+  })
+
+  .command('export [file]', 'Export a markdown intelligence digest', (y) =>
+    y.positional('file', { type: 'string', default: 'pac-memory-digest.md' }),
+    async (args) => {
+      getDb()
+      const file = args.file as string
+      writeFileSync(file, exportDigestMarkdown(), 'utf-8')
+      console.log(`Digest exported: ${file}`)
+      closeDb()
+    }
+  )
 
   .demandCommand(1, 'Please specify a command.')
   .help('h').alias('h', 'help')

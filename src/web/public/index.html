@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PAC-MEMORY // Autonomous Knowledge System</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050505'/%3E%3Cpath d='M12 20h40v24H12z' fill='none' stroke='%2300ff41' stroke-width='4'/%3E%3Cpath d='M20 28h8v8h-8zm16 0h8v8h-8z' fill='%2300e5ff'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet" />
 </head>
@@ -28,6 +29,8 @@
       <div class="stat"><span class="stat-label">KNOWLEDGE</span><span id="stat-total" class="stat-value">—</span></div>
       <div class="stat"><span class="stat-label">AGENTS</span><span id="stat-agents" class="stat-value">—</span></div>
       <div class="stat"><span class="stat-label">EVOLUTIONS</span><span id="stat-evolutions" class="stat-value">—</span></div>
+      <div class="stat"><span class="stat-label">VALUE</span><span id="stat-value" class="stat-value">—</span></div>
+      <div class="stat"><span class="stat-label">HEALTH</span><span id="stat-health" class="stat-value">—</span></div>
       <div class="stat"><span class="stat-label">UPTIME</span><span id="stat-uptime" class="stat-value">00:00:00</span></div>
     </div>
 
@@ -76,8 +79,22 @@
       <!-- Center: Live Log -->
       <section class="panel" id="panel-log">
         <div class="panel-header">
-          <span class="panel-title">// LIVE LOG</span>
+          <span class="panel-title">// MISSION CONTROL</span>
           <button class="btn-icon" id="btn-clear-log" title="Clear log">✕</button>
+        </div>
+        <div class="command-grid">
+          <button class="cmd-button" id="btn-run-collect"><span>⟳</span><strong>COLLECT</strong><small>run all agents</small></button>
+          <button class="cmd-button" id="btn-run-evolve"><span>◇</span><strong>EVOLVE</strong><small>generate collectors</small></button>
+          <button class="cmd-button" id="btn-export-md"><span>↓</span><strong>EXPORT</strong><small>markdown digest</small></button>
+        </div>
+        <div class="intel-strip">
+          <div><span class="intel-label">categories</span><strong id="intel-categories">—</strong></div>
+          <div><span class="intel-label">sources</span><strong id="intel-sources">—</strong></div>
+          <div><span class="intel-label">stale</span><strong id="intel-stale">—</strong></div>
+        </div>
+        <div id="insight-list" class="insight-list"></div>
+        <div class="panel-header panel-header-compact">
+          <span class="panel-title">// LIVE LOG</span>
         </div>
         <div id="log-list" class="scroll-area log-area"></div>
       </section>
@@ -100,6 +117,14 @@
             <span class="panel-title">// EVOLUTION LOG</span>
           </div>
           <div id="evolution-list" class="scroll-area evo-area"></div>
+        </div>
+
+        <!-- Top Knowledge -->
+        <div class="sub-panel">
+          <div class="panel-header">
+            <span class="panel-title">// HIGH VALUE</span>
+          </div>
+          <div id="top-knowledge-list" class="top-list"></div>
         </div>
 
         <!-- QA Assistant -->
@@ -140,6 +165,10 @@
           <div class="modal-meta-item"><span class="modal-meta-label">SOURCE:</span> <span id="modal-source"></span></div>
           <div class="modal-meta-item"><span class="modal-meta-label">CATEGORY:</span> <span id="modal-category"></span></div>
           <div class="modal-meta-item"><span class="modal-meta-label">UPDATED:</span> <span id="modal-updated"></span></div>
+        </div>
+        <div class="modal-section">
+          <span class="modal-section-label">❯ RELATED KNOWLEDGE</span>
+          <div id="modal-related" class="related-list"></div>
         </div>
       </div>
     </div>

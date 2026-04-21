@@ -9,6 +9,8 @@ import { orchestratorEvents } from '../agents/orchestrator.agent.js'
 import { knowledgeRoutes } from './routes/knowledge.routes.js'
 import { agentRoutes } from './routes/agents.routes.js'
 import { evolutionRoutes } from './routes/evolution.routes.js'
+import { intelligenceRoutes } from './routes/intelligence.routes.js'
+import { controlRoutes } from './routes/control.routes.js'
 // WebSocket type from @fastify/websocket
 type WebSocket = { readyState: number; send: (data: string) => void; on: (event: string, cb: () => void) => void }
 
@@ -55,8 +57,10 @@ export async function startWebServer() {
   await app.register(knowledgeRoutes, { prefix: '/api' })
   await app.register(agentRoutes, { prefix: '/api' })
   await app.register(evolutionRoutes, { prefix: '/api' })
+  await app.register(intelligenceRoutes, { prefix: '/api' })
+  await app.register(controlRoutes, { prefix: '/api' })
 
-  await app.listen({ port: cfg.port, host: '127.0.0.1' })
-  log.info({ port: cfg.port }, `Web dashboard: http://localhost:${cfg.port}`)
+  await app.listen({ port: cfg.port, host: cfg.host })
+  log.info({ host: cfg.host, port: cfg.port }, `Web dashboard: http://${cfg.host}:${cfg.port}`)
   return app
 }

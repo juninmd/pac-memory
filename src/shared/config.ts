@@ -12,6 +12,7 @@ export const cfg = {
   githubToken: optional('GITHUB_TOKEN', ''),
   githubUsername: optional('GITHUB_USERNAME', ''),
   port: Number(optional('PORT', '3000')),
+  host: optional('HOST', '127.0.0.1'),
   logLevel: optional('LOG_LEVEL', 'info'),
   evolutionIntervalHours: Number(optional('EVOLUTION_INTERVAL_HOURS', '24')),
   dbPath: optional('DB_PATH', 'data/pac-memory.db'),

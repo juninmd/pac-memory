@@ -47,6 +47,13 @@ export function searchKnowledge(query: string, limit = 20): Knowledge[] {
   return rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) }))
 }
 
+export function getKnowledgeById(id: number): Knowledge | undefined {
+  const db = getDb()
+  const row = db.prepare('SELECT * FROM knowledge WHERE id=?').get(id) as (Omit<Knowledge, 'metadata'> & { metadata: string }) | undefined
+  if (!row) return undefined
+  return { ...row, metadata: JSON.parse(row.metadata) }
+}
+
 export function listKnowledge(category?: string, limit = 50, offset = 0): Knowledge[] {
   const db = getDb()
   const rows = category
@@ -61,6 +68,26 @@ export function countKnowledge(): number {
   const db = getDb()
   const row = db.prepare('SELECT COUNT(*) as count FROM knowledge').get() as { count: number }
   return row.count
+}
+
+export function listCategories(): { category: string; count: number; avg_importance: number; latest_update: string }[] {
+  const db = getDb()
+  return db.prepare(`
+    SELECT category, COUNT(*) as count, AVG(importance_score) as avg_importance, MAX(updated_at) as latest_update
+    FROM knowledge
+    GROUP BY category
+    ORDER BY count DESC, category ASC
+  `).all() as { category: string; count: number; avg_importance: number; latest_update: string }[]
+}
+
+export function listSources(): { source: string; count: number; latest_update: string }[] {
+  const db = getDb()
+  return db.prepare(`
+    SELECT source, COUNT(*) as count, MAX(updated_at) as latest_update
+    FROM knowledge
+    GROUP BY source
+    ORDER BY count DESC, source ASC
+  `).all() as { source: string; count: number; latest_update: string }[]
 }
 
 export function startAgentRun(agentName: string): number {

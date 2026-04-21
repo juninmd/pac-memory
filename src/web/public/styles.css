@@ -8,6 +8,8 @@
   --green-dark: #003310;
   --cyan: #00e5ff;
   --yellow: #ffd600;
+  --violet: #b388ff;
+  --orange: #ff9f1c;
   --red: #ff1744;
   --grey: #333;
   --grey-mid: #555;
@@ -111,7 +113,7 @@ html, body {
 /* ─── Main grid ──────────────────────────────────────────────────────── */
 #main-grid {
   display: grid;
-  grid-template-columns: 1fr 340px 280px;
+  grid-template-columns: minmax(360px, 1fr) 380px 300px;
   gap: var(--panel-gap);
   padding: var(--panel-gap);
   overflow: hidden;
@@ -146,6 +148,96 @@ html, body {
   padding: 6px 10px;
   border-top: var(--border);
   flex-shrink: 0;
+}
+.panel-header-compact {
+  border-top: var(--border);
+}
+
+/* ─── Mission control ────────────────────────────────────────────────── */
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: var(--border);
+}
+.cmd-button {
+  min-height: 64px;
+  background: linear-gradient(180deg, #111, #090909);
+  border: 1px solid var(--grey);
+  color: var(--text);
+  font-family: var(--font);
+  cursor: pointer;
+  display: grid;
+  grid-template-rows: 18px 16px 14px;
+  place-items: center;
+  border-radius: var(--radius);
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+.cmd-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--cyan);
+  background: #071417;
+}
+.cmd-button span { color: var(--cyan); font-size: 16px; line-height: 1; }
+.cmd-button strong { color: var(--green); font-size: 10px; letter-spacing: 1px; }
+.cmd-button small { color: var(--text-dim); font-size: 8px; }
+.intel-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: var(--border);
+}
+.intel-strip > div {
+  padding: 7px 10px;
+  border-right: var(--border);
+}
+.intel-strip > div:last-child { border-right: none; }
+.intel-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.intel-strip strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--violet);
+  font-size: 14px;
+}
+.insight-list {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: var(--border);
+  max-height: 230px;
+  overflow-y: auto;
+}
+.insight {
+  border: 1px solid var(--grey);
+  border-left-width: 3px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.insight-info { border-left-color: var(--cyan); }
+.insight-warning { border-left-color: var(--yellow); }
+.insight-critical { border-left-color: var(--red); }
+.insight-title {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+.insight-detail {
+  color: var(--text-dim);
+  line-height: 1.4;
+  font-size: 9px;
+}
+.insight-action {
+  color: var(--orange);
+  margin-top: 5px;
+  line-height: 1.4;
+  font-size: 9px;
 }
 
 /* ─── Sub-panels (right column) ──────────────────────────────────────── */
@@ -265,6 +357,41 @@ html, body {
 .evo-status-pending { color: var(--yellow); }
 .evo-status-compiled { color: var(--cyan); }
 .evo-reason { color: var(--text-dim); font-size: 9px; margin-top: 1px; }
+
+/* ─── Top knowledge ──────────────────────────────────────────────────── */
+.top-list {
+  display: grid;
+  gap: 4px;
+  padding: 6px 10px;
+}
+.top-item, .related-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid #181818;
+  color: var(--text);
+  font-family: var(--font);
+  padding: 7px 8px;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.top-item:hover, .related-item:hover {
+  border-color: var(--violet);
+  background: rgba(179, 136, 255, 0.08);
+}
+.top-item span, .related-item span {
+  display: block;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.top-item small, .related-item small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 8px;
+}
 
 /* ─── Suggest area ───────────────────────────────────────────────────── */
 #suggest-input-wrap, #qa-input-wrap { padding: 6px 10px; border-top: var(--border); }
@@ -450,6 +577,10 @@ html, body {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--green-dark);
   margin-top: 10px;
+}
+.related-list {
+  display: grid;
+  gap: 6px;
 }
 .modal-meta-item {
   font-size: 10px;

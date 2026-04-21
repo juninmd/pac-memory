@@ -76,31 +76,7 @@ const runEvolutionTool = new FunctionTool({
   name: 'run_evolution',
   description: 'Analyzes knowledge gaps and generates new collector code to expand capabilities',
   parameters: z.object({}),
-  execute: async () => {
-    log.info('Running evolution cycle')
-    orchestratorEvents.emit('evolution', { phase: 'gap-analysis', status: 'started' })
-
-    const suggestions = await analyzeGaps()
-    if (suggestions.length === 0) {
-      return { result: 'No gaps found in this cycle' }
-    }
-
-    const results: string[] = []
-    for (const s of suggestions.slice(0, 2)) { // max 2 per cycle
-      try {
-        orchestratorEvents.emit('evolution', { phase: 'code-gen', feature: s.name, status: 'started' })
-        const code = await generateCollector(s)
-        const { success, filePath } = await deployCollector(s, code)
-        const status = success ? 'deployed' : 'failed'
-        orchestratorEvents.emit('evolution', { phase: 'deploy', feature: s.name, status, filePath })
-        results.push(`${s.name}: ${status}`)
-      } catch (err) {
-        log.error({ err, name: s.name }, 'Evolution step failed')
-        results.push(`${s.name}: error`)
-      }
-    }
-    return { result: results.join(', ') }
-  },
+  execute: () => runEvolutionCycle(),
 })
 
 // ── Coordinator Agent ─────────────────────────────────────────────────────
@@ -202,6 +178,35 @@ export function startScheduler() {
   })
 
   log.info('Scheduler started: system/net=5min, env/github=30min, web=1h, evolution=${evolutionHours}h')
+}
+
+export async function runEvolutionCycle(): Promise<{ result: string; suggestions: number }> {
+  log.info('Running evolution cycle')
+  orchestratorEvents.emit('evolution', { phase: 'gap-analysis', status: 'started' })
+
+  const suggestions = await analyzeGaps()
+  if (suggestions.length === 0) {
+    orchestratorEvents.emit('evolution', { phase: 'gap-analysis', status: 'no-gaps' })
+    return { result: 'No gaps found in this cycle', suggestions: 0 }
+  }
+
+  const results: string[] = []
+  for (const s of suggestions.slice(0, 2)) {
+    try {
+      orchestratorEvents.emit('evolution', { phase: 'code-gen', feature: s.name, status: 'started' })
+      const code = await generateCollector(s)
+      const { success, filePath } = await deployCollector(s, code)
+      const status = success ? 'deployed' : 'failed'
+      orchestratorEvents.emit('evolution', { phase: 'deploy', feature: s.name, status, filePath })
+      results.push(`${s.name}: ${status}`)
+    } catch (err) {
+      log.error({ err, name: s.name }, 'Evolution step failed')
+      orchestratorEvents.emit('evolution', { phase: 'deploy', feature: s.name, status: 'failed' })
+      results.push(`${s.name}: error`)
+    }
+  }
+
+  return { result: results.join(', '), suggestions: suggestions.length }
 }
 
 // ── One-shot full collection ───────────────────────────────────────────────

@@ -7,6 +7,10 @@ const log = childLogger('gemini-client')
 
 const TIMEOUT_MS = 60_000
 
+function hasErrorCode(err: unknown, code: string): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === code
+}
+
 export async function gemini(prompt: string, model: string = cfg.geminiModel): Promise<GeminiResponse> {
   return new Promise((resolve, reject) => {
     const args = ['-p', prompt, '-m', model, '--output-format', 'text']
@@ -34,7 +38,7 @@ export async function gemini(prompt: string, model: string = cfg.geminiModel): P
 
     child.on('error', (err) => {
       clearTimeout(timer)
-      const extra = err && typeof err === 'object' && 'code' in err && (err as any).code === 'ENOENT'
+      const extra = hasErrorCode(err, 'ENOENT')
         ? 'Gemini CLI não encontrado. Instale @google/gemini-cli globalmente e garanta que o comando gemini esteja no PATH.'
         : `Failed to spawn gemini: ${err.message}. Is @google/gemini-cli installed globally?`
       reject(new Error(extra))
