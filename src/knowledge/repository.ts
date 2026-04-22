@@ -1,4 +1,4 @@
-import type { Knowledge, KnowledgeInput, AgentRun, EvolutionLog } from '../shared/types.js'
+import type { Knowledge, KnowledgeInput, AgentRun, EvolutionLog, Source, SourceInput } from '../shared/types.js'
 import { getDb } from './database.js'
 import { childLogger } from '../shared/logger.js'
 
@@ -88,6 +88,68 @@ export function listSources(): { source: string; count: number; latest_update: s
     GROUP BY source
     ORDER BY count DESC, source ASC
   `).all() as { source: string; count: number; latest_update: string }[]
+}
+
+export function listConfiguredSources(type?: Source['type']): Source[] {
+  const db = getDb()
+  const rows = type
+    ? db.prepare('SELECT * FROM sources WHERE type=? ORDER BY name ASC').all(type)
+    : db.prepare('SELECT * FROM sources ORDER BY type ASC, name ASC').all()
+
+  return (rows as (Omit<Source, 'config' | 'is_active'> & { config: string; is_active: number })[])
+    .map((row) => ({
+      ...row,
+      config: JSON.parse(row.config),
+      is_active: row.is_active === 1,
+    }))
+}
+
+export function listActiveRssSources(): Source[] {
+  return listConfiguredSources('rss').filter((source) => source.is_active && source.url)
+}
+
+export function createSource(source: SourceInput): number {
+  const db = getDb()
+  const result = db.prepare(`
+    INSERT INTO sources (name, type, url, config, last_checked, is_active)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    source.name,
+    source.type,
+    source.url ?? null,
+    JSON.stringify(source.config),
+    source.last_checked ?? null,
+    source.is_active ? 1 : 0
+  )
+  return result.lastInsertRowid as number
+}
+
+export function updateSource(id: number, patch: Partial<SourceInput>) {
+  const current = listConfiguredSources().find((source) => source.id === id)
+  if (!current) {
+    throw new Error(`Source not found: ${id}`)
+  }
+
+  const next = { ...current, ...patch }
+  const db = getDb()
+  db.prepare(`
+    UPDATE sources
+    SET name=?, type=?, url=?, config=?, last_checked=?, is_active=?
+    WHERE id=?
+  `).run(
+    next.name,
+    next.type,
+    next.url ?? null,
+    JSON.stringify(next.config),
+    next.last_checked ?? null,
+    next.is_active ? 1 : 0,
+    id
+  )
+}
+
+export function deleteSource(id: number) {
+  const db = getDb()
+  db.prepare('DELETE FROM sources WHERE id=?').run(id)
 }
 
 export function startAgentRun(agentName: string): number {

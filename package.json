@@ -15,6 +15,7 @@
     "dev": "tsx src/cli/index.ts start",
     "dev:web": "tsx src/cli/index.ts web",
     "dev:collect": "tsx src/cli/index.ts collect",
+    "dev:learn": "tsx src/cli/index.ts learn",
     "dev:status": "tsx src/cli/index.ts status",
     "dev:evolve": "tsx src/cli/index.ts evolve",
     "dev:insights": "tsx src/cli/index.ts insights",

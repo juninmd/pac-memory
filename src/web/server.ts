@@ -5,12 +5,13 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { childLogger } from '../shared/logger.js'
 import { cfg } from '../shared/config.js'
-import { orchestratorEvents } from '../agents/orchestrator.agent.js'
+import { orchestratorEvents } from '../shared/events.js'
 import { knowledgeRoutes } from './routes/knowledge.routes.js'
 import { agentRoutes } from './routes/agents.routes.js'
 import { evolutionRoutes } from './routes/evolution.routes.js'
 import { intelligenceRoutes } from './routes/intelligence.routes.js'
 import { controlRoutes } from './routes/control.routes.js'
+import { sourcesRoutes } from './routes/sources.routes.js'
 // WebSocket type from @fastify/websocket
 type WebSocket = { readyState: number; send: (data: string) => void; on: (event: string, cb: () => void) => void }
 
@@ -58,6 +59,7 @@ export async function startWebServer() {
   await app.register(agentRoutes, { prefix: '/api' })
   await app.register(evolutionRoutes, { prefix: '/api' })
   await app.register(intelligenceRoutes, { prefix: '/api' })
+  await app.register(sourcesRoutes, { prefix: '/api' })
   await app.register(controlRoutes, { prefix: '/api' })
 
   await app.listen({ port: cfg.port, host: cfg.host })

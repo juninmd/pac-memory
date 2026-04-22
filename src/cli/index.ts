@@ -8,6 +8,7 @@ import { analyzeGaps } from '../evolution/gap-analyzer.js'
 import { generateCollector } from '../evolution/code-generator.js'
 import { deployCollector } from '../evolution/deployer.js'
 import { buildKnowledgeDigest, exportDigestMarkdown } from '../knowledge/insights.js'
+import { runLearningCycle } from '../learning/cycle.js'
 import { childLogger } from '../shared/logger.js'
 import { writeFileSync } from 'fs'
 
@@ -121,6 +122,20 @@ yargs(hideBin(process.argv))
     console.log('\nRecent agent runs:')
     runs.forEach(r => {
       console.log(`  [${r.status.padEnd(9)}] ${r.agent_name.padEnd(15)} items=${r.items_collected} ${r.finished_at ?? 'running'} ${r.error ? '⚠ ' + r.error : ''}`)
+    })
+    console.log()
+    closeDb()
+  })
+
+  .command('learn', 'Run a one-shot autonomous internet learning cycle', {}, async () => {
+    getDb()
+    const result = await runLearningCycle()
+    console.log(`\nLearning cycle complete`)
+    console.log(`Collected: ${result.collected}`)
+    console.log(`Stored: ${result.stored}`)
+    console.log(`Blocked sources: ${result.blocked}`)
+    result.blockedSources.forEach((blocked) => {
+      console.log(`  - ${blocked.source}: ${blocked.reason}`)
     })
     console.log()
     closeDb()

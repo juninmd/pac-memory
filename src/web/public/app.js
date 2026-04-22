@@ -209,9 +209,23 @@ if (qaInputEl) qaInputEl.addEventListener('keydown', (ev) => {
 })
 
 bindClick('btn-run-collect', () => runControlTask('collect'))
+bindClick('btn-run-learn', () => runControlTask('learn'))
 bindClick('btn-run-evolve', () => runControlTask('evolve'))
 bindClick('btn-export-md', () => {
   location.href = '/api/export/digest?format=markdown'
+})
+
+bindClick('btn-save-control-token', () => {
+  const input = document.getElementById('control-token-input')
+  if (!input) return
+  const token = input.value.trim()
+  if (token) {
+    localStorage.setItem('pacMemoryControlToken', token)
+    appendLog('control', 'control token saved locally', 'success')
+  } else {
+    localStorage.removeItem('pacMemoryControlToken')
+    appendLog('control', 'control token cleared', 'agent')
+  }
 })
 
 async function doQa() {
@@ -391,7 +405,7 @@ async function loadRelatedKnowledge(id) {
 
 async function runControlTask(task) {
   appendLog('control', `starting ${task}...`, 'agent')
-  const data = await fetchJson(`/api/control/${task}`, { method: 'POST' })
+  const data = await fetchJson(`/api/control/${task}`, { method: 'POST', headers: controlHeaders() })
   if (data?.accepted) {
     appendLog('control', `${task} accepted by server`, 'success')
   }
@@ -483,9 +497,16 @@ async function fetchJson(url, options) {
   }
 }
 
+function controlHeaders() {
+  const token = localStorage.getItem('pacMemoryControlToken')
+  return token ? { 'x-pac-memory-token': token } : {}
+}
+
 // ─── Init ───────────────────────────────────────────────────────────────────
 
 async function init() {
+  const tokenInput = document.getElementById('control-token-input')
+  if (tokenInput) tokenInput.value = localStorage.getItem('pacMemoryControlToken') || ''
   connectWS()
   await loadKnowledge(true)
   await refreshAgents()

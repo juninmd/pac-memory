@@ -32,7 +32,21 @@ export function collectEnvVars(): KnowledgeInput[] {
       grouped['Node.js'][k] = v
     } else if (['USERNAME', 'USERPROFILE', 'USERDOMAIN', 'COMPUTERNAME', 'OS'].some(p => k.toUpperCase() === p)) {
       grouped['User'][k] = v
-    } else if (['PORT', 'HOST', 'LOG_LEVEL', 'DB_PATH', 'GEMINI_API_KEY', 'GITHUB_TOKEN', 'GITHUB_USERNAME'].includes(k)) {
+    } else if ([
+      'PORT',
+      'HOST',
+      'LOG_LEVEL',
+      'DB_PATH',
+      'LITELLM_BASE_URL',
+      'LITELLM_MODEL',
+      'LITELLM_API_KEY',
+      'LITELLM_TIMEOUT_MS',
+      'OLLAMA_BASE_URL',
+      'OLLAMA_MODEL',
+      'OLLAMA_TIMEOUT_MS',
+      'GITHUB_TOKEN',
+      'GITHUB_USERNAME',
+    ].includes(k)) {
       grouped['Application'][k] = '***' // redact app-specific
     } else {
       grouped['Other'][k] = v

@@ -1,3 +1,43 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pac-memory
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pac-memory-config
+  namespace: pac-memory
+data:
+  HOST: "0.0.0.0"
+  PORT: "3000"
+  LOG_LEVEL: "info"
+  DB_PATH: "/app/data/pac-memory.db"
+  LITELLM_BASE_URL: "http://litellm:4000"
+  LITELLM_MODEL: "ollama/llama3.1:8b"
+  LITELLM_TIMEOUT_MS: "60000"
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3.1:8b"
+  OLLAMA_TIMEOUT_MS: "60000"
+  EVOLUTION_INTERVAL_HOURS: "24"
+  LEARNING_INTERVAL_HOURS: "6"
+  LEARNING_ALLOW_HTTP: "false"
+  LEARNING_FETCH_TIMEOUT_MS: "15000"
+  LEARNING_MAX_BYTES: "1048576"
+  LEARNING_MAX_ITEMS_PER_SOURCE: "20"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pac-memory-pvc
+  namespace: pac-memory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,22 +53,56 @@ spec:
       labels:
         app: pac-memory
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - name: pac-memory
-        image: ghcr.io/juninmd/pac-memory:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 3000
-        envFrom:
-        - secretRef:
-            name: pac-memory-secrets
-        volumeMounts:
-        - name: data
-          mountPath: /app/data
+        - name: pac-memory
+          image: ghcr.io/juninmd/pac-memory:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: pac-memory-config
+            - secretRef:
+                name: pac-memory-secrets
+                optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/knowledge/stats
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       volumes:
-      - name: data
-        persistentVolumeClaim:
-          claimName: pac-memory-pvc
+        - name: data
+          persistentVolumeClaim:
+            claimName: pac-memory-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -43,3 +117,175 @@ spec:
       port: 80
       targetPort: 3000
   type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: pac-memory
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: pac-memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:main-latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--model"
+            - "ollama/llama3.1:8b"
+            - "--port"
+            - "4000"
+          env:
+            - name: OLLAMA_API_BASE
+              value: "http://ollama:11434"
+          ports:
+            - containerPort: 4000
+          readinessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: pac-memory
+spec:
+  selector:
+    app: litellm
+  ports:
+    - protocol: TCP
+      port: 4000
+      targetPort: 4000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: pac-memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 11434
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: pac-memory
+spec:
+  selector:
+    app: ollama
+  ports:
+    - protocol: TCP
+      port: 11434
+      targetPort: 11434
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pac-memory-internal-ollama
+  namespace: pac-memory
+spec:
+  podSelector:
+    matchLabels:
+      app: ollama
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: pac-memory
+        - podSelector:
+            matchLabels:
+              app: litellm
+      ports:
+        - protocol: TCP
+          port: 11434
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pac-memory-internal-litellm
+  namespace: pac-memory
+spec:
+  podSelector:
+    matchLabels:
+      app: litellm
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: pac-memory
+      ports:
+        - protocol: TCP
+          port: 4000

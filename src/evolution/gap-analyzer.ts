@@ -1,9 +1,9 @@
-import { gemini } from '../gemini/client.js'
 import { listKnowledge, countKnowledge, insertEvolutionLog, updateEvolutionStatus } from '../knowledge/repository.js'
 import { childLogger } from '../shared/logger.js'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { cfg } from '../shared/config.js'
+import { generateText } from '../llm/client.js'
 
 const log = childLogger('gap-analyzer')
 
@@ -52,7 +52,7 @@ export async function analyzeGaps(): Promise<GapSuggestion[]> {
   })
 
   try {
-    const raw = await gemini(prompt)
+    const raw = await generateText(prompt)
     // Extract JSON from response (may have surrounding text)
     const jsonMatch = raw.content.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {

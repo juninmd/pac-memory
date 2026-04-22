@@ -23,6 +23,8 @@ export interface Source {
   is_active: boolean
 }
 
+export type SourceInput = Omit<Source, 'id' | 'last_checked'> & { last_checked?: string }
+
 export interface EvolutionLog {
   id: number
   trigger_reason: string
@@ -40,11 +42,6 @@ export interface AgentRun {
   error?: string
   started_at: string
   finished_at?: string
-}
-
-export interface GeminiResponse {
-  content: string
-  raw: string
 }
 
 export interface CollectorResult {

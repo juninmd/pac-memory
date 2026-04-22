@@ -171,7 +171,7 @@ function generateInsights(digest: Omit<KnowledgeDigest, 'insights'>, all: Knowle
       severity: 'info',
       title: 'Resumos ausentes',
       detail: `${lowSummaryCount} entradas ainda nao tem resumo.`,
-      action: 'Configure o Gemini CLI ou rode enriquecimento posterior quando disponivel.',
+      action: 'Configure o LiteLLM/Ollama ou rode enriquecimento posterior quando disponivel.',
     })
   }
 

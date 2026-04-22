@@ -27,7 +27,7 @@ PAC-MEMORY is an autonomous local knowledge system. It collects signals from the
 ## Current Capabilities
 
 - Full-text knowledge search with FTS5.
-- Local Q&A over retrieved knowledge with Gemini fallback behavior.
+- Local Q&A over retrieved knowledge through LiteLLM-backed Ollama behavior.
 - Live WebSocket log of agents and evolution events.
 - Manual run controls for collection and evolution.
 - Intelligence digest with health, value density, stale knowledge, source coverage and recommended actions.
@@ -38,8 +38,8 @@ PAC-MEMORY is an autonomous local knowledge system. It collects signals from the
 ## Key Decisions
 
 - **SQLite remains the system of record.** It is enough for local autonomous memory, supports FTS5, and keeps deployment simple.
-- **Insights are deterministic by default.** The cockpit should remain useful when Gemini is unavailable.
-- **LLM use is additive.** Gemini improves summaries, categorization, Q&A and evolution, but the core can still collect, search and diagnose locally.
+- **Insights are deterministic by default.** The cockpit should remain useful when LiteLLM/Ollama is unavailable.
+- **LLM use is additive.** LiteLLM-backed Ollama improves summaries, categorization, Q&A and evolution, but the core can still collect, search and diagnose locally.
 - **Generated collectors are isolated.** Evolution writes to `generated/` and validates TypeScript before deployment.
 - **The dashboard is operational.** It can trigger collection/evolution and export digests, not just display data.
 

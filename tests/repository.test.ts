@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { getDb, closeDb } from '../src/knowledge/database.js'
-import { upsertKnowledge, searchKnowledge, bulkUpsert, countKnowledge } from '../src/knowledge/repository.js'
+import {
+  bulkUpsert,
+  countKnowledge,
+  createSource,
+  listActiveRssSources,
+  listConfiguredSources,
+  searchKnowledge,
+  updateSource,
+  upsertKnowledge,
+} from '../src/knowledge/repository.js'
 import type { KnowledgeInput } from '../src/shared/types.js'
 import { mkdirSync } from 'fs'
 
@@ -20,7 +29,7 @@ describe('Knowledge Repository', () => {
   beforeEach(() => {
     const db = getDb(':memory:')
     // Truncate all tables for a clean state each test
-    db.exec("DELETE FROM knowledge; DELETE FROM knowledge_fts; DELETE FROM agent_runs; DELETE FROM evolution_log;")
+    db.exec("DELETE FROM knowledge; DELETE FROM knowledge_fts; DELETE FROM agent_runs; DELETE FROM evolution_log; DELETE FROM sources;")
     db.exec("INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')")
   })
 
@@ -79,5 +88,22 @@ describe('Knowledge Repository', () => {
     upsertKnowledge(sample)
     const results = searchKnowledge('xyznotexist987')
     expect(results.length).toBe(0)
+  })
+
+  it('creates and updates configured RSS sources', () => {
+    const id = createSource({
+      name: 'Example Feed',
+      type: 'rss',
+      url: 'https://example.com/feed.xml',
+      config: { category: 'programming' },
+      is_active: true,
+    })
+
+    expect(listConfiguredSources('rss')).toHaveLength(1)
+    expect(listActiveRssSources()[0]?.config.category).toBe('programming')
+
+    updateSource(id, { is_active: false })
+
+    expect(listActiveRssSources()).toHaveLength(0)
   })
 })

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { searchKnowledge, listKnowledge, countKnowledge } from '../../knowledge/repository.js'
-import { gemini } from '../../gemini/client.js'
+import { generateText } from '../../llm/client.js'
 import { childLogger } from '../../shared/logger.js'
 
 const log = childLogger('knowledge-routes')
@@ -45,22 +45,22 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     const prompt = `Você é um assistente técnico que responde usando apenas os dados coletados pelo sistema PAC-MEMORY. Não invente fatos.\n\nDados de contexto:\n${sourceText}\n\nPergunta: ${safeQuestion}\n\nResposta:`
 
     try {
-      const response = await gemini(prompt)
+      const response = await generateText(prompt)
       return reply.send({
         answer: response.content.trim(),
         sources: results.map((item) => ({ title: item.title, category: item.category, source: item.source })),
       })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro desconhecido ao chamar Gemini CLI.'
+      const message = err instanceof Error ? err.message : 'Erro desconhecido ao chamar Ollama.'
       log.error({ err, question: safeQuestion }, 'QA request failed')
 
       const fallbackSources = results
         .map((item, index) => `Fonte ${index + 1}: [${item.category}] ${item.title}\n${item.content}`)
         .join('\n\n')
 
-      if (message.includes('Gemini CLI não encontrado') || message.includes('Failed to spawn gemini') || message.includes('timed out')) {
+      if (message.includes('LiteLLM') || message.includes('Ollama') || message.includes('timed out') || message.includes('abort')) {
         return reply.send({
-          answer: `Não foi possível usar o Gemini CLI. Resposta baseada nas fontes locais:\n\n${fallbackSources}`,
+          answer: `Não foi possível usar o LLM configurado. Resposta baseada nas fontes locais:\n\n${fallbackSources}`,
           sources: results.map((item) => ({ title: item.title, category: item.category, source: item.source })),
           warning: message,
         })

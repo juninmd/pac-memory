@@ -14,11 +14,12 @@ import { generateCollector } from '../evolution/code-generator.js'
 import { deployCollector } from '../evolution/deployer.js'
 import { childLogger } from '../shared/logger.js'
 import { cfg } from '../shared/config.js'
-import EventEmitter from 'events'
+import { orchestratorEvents } from '../shared/events.js'
+import { runLearningCycle } from '../learning/cycle.js'
 import type { KnowledgeInput } from '../shared/types.js'
+import { LiteLlmAdk } from '../llm/litellm-adk.js'
 
 const log = childLogger('orchestrator')
-export const orchestratorEvents = new EventEmitter()
 
 // ── Tools ─────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ const runEvolutionTool = new FunctionTool({
 
 export const coordinator = new LlmAgent({
   name: 'pac_memory_coordinator',
-  model: 'gemini-2.5-flash',
+  model: new LiteLlmAdk(),
   description: 'Orchestrates all knowledge collection agents and self-evolution',
   instruction: `You are the coordinator of pac-memory, an autonomous knowledge system.
 You have access to tools that collect information about the local machine, GitHub repos, environment, and AI news.
@@ -104,18 +105,14 @@ async function runCollector(
   try {
     const items = await fn()
 
-    // Process items: summarize and categorize via Gemini if available
+    // Process items: summarize and categorize via configured LLM when available.
     const processed = await Promise.all(
       items.map(async (item) => {
-        if (cfg.geminiApiKey) {
-          // Generate summary if missing
-          if (!item.summary) {
-            item.summary = await summarize(item.title, item.content)
-          }
-          // Categorize if uncategorized
-          if (item.category === 'uncategorized') {
-            item.category = await categorize(item.title, item.content)
-          }
+        if (!item.summary) {
+          item.summary = await summarize(item.title, item.content)
+        }
+        if (item.category === 'uncategorized') {
+          item.category = await categorize(item.title, item.content)
         }
         return item
       })
@@ -161,6 +158,13 @@ export function startScheduler() {
     await runCollector('web-monitor', collectWebMonitor)
   })
 
+  // Autonomous learning: configurable (default 6h)
+  const learningHours = cfg.learningIntervalHours
+  cron.schedule(`0 */${learningHours} * * *`, async () => {
+    log.info('Starting scheduled learning cycle')
+    await runLearningCycle()
+  })
+
   // Evolution: configurable (default 24h)
   const evolutionHours = cfg.evolutionIntervalHours
   cron.schedule(`0 */${evolutionHours} * * *`, async () => {
@@ -177,7 +181,7 @@ export function startScheduler() {
     }
   })
 
-  log.info('Scheduler started: system/net=5min, env/github=30min, web=1h, evolution=${evolutionHours}h')
+  log.info({ learningHours, evolutionHours }, 'Scheduler started')
 }
 
 export async function runEvolutionCycle(): Promise<{ result: string; suggestions: number }> {

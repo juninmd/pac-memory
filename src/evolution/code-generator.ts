@@ -1,9 +1,9 @@
-import { gemini } from '../gemini/client.js'
 import { childLogger } from '../shared/logger.js'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { cfg } from '../shared/config.js'
 import type { GapSuggestion } from './gap-analyzer.js'
+import { generateText } from '../llm/client.js'
 
 const log = childLogger('code-generator')
 
@@ -49,6 +49,6 @@ export async function generateCollector(suggestion: GapSuggestion): Promise<stri
     .replace('{approach}', suggestion.approach)
     .replace('{PascalName}', pascalName)
 
-  const result = await gemini(prompt)
+  const result = await generateText(prompt)
   return result.content
 }
