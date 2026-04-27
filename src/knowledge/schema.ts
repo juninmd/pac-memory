@@ -61,4 +61,13 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   started_at      TEXT NOT NULL DEFAULT (datetime('now')),
   finished_at     TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge(category);
+CREATE INDEX IF NOT EXISTS idx_knowledge_source ON knowledge(source);
+CREATE INDEX IF NOT EXISTS idx_knowledge_updated ON knowledge(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_knowledge_importance ON knowledge(importance_score DESC);
+CREATE INDEX IF NOT EXISTS idx_sources_type ON sources(type);
+CREATE INDEX IF NOT EXISTS idx_sources_active ON sources(is_active);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_name, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_evolution_status ON evolution_log(status);
 `

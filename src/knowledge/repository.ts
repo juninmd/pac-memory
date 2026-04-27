@@ -1,4 +1,5 @@
-import type { Knowledge, KnowledgeInput, AgentRun, EvolutionLog, Source, SourceInput } from '../shared/types.js'
+import { EventEmitter } from 'events'
+import type { AgentRun, EvolutionLog, Knowledge, KnowledgeInput, Source, SourceInput } from '../shared/types.js'
 import { getDb } from './database.js'
 import { childLogger } from '../shared/logger.js'
 
@@ -193,4 +194,87 @@ export function updateEvolutionStatus(id: number, status: EvolutionLog['status']
 export function listEvolutionLog(limit = 20): EvolutionLog[] {
   const db = getDb()
   return db.prepare('SELECT * FROM evolution_log ORDER BY created_at DESC LIMIT ?').all(limit) as EvolutionLog[]
+}
+
+export function deleteKnowledge(id: number): boolean {
+  const db = getDb()
+  const result = db.prepare('DELETE FROM knowledge WHERE id=?').run(id)
+  return result.changes > 0
+}
+
+export function countKnowledgeByCategory(): { category: string; count: number }[] {
+  const db = getDb()
+  return db.prepare('SELECT category, COUNT(*) as count FROM knowledge GROUP BY category ORDER BY count DESC').all() as { category: string; count: number }[]
+}
+
+export function searchKnowledgePaginated(query: string, limit = 20, offset = 0): { items: Knowledge[]; total: number } {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT k.* FROM knowledge k
+    JOIN knowledge_fts ON knowledge_fts.rowid = k.id
+    WHERE knowledge_fts MATCH ?
+    ORDER BY bm25(knowledge_fts)
+    LIMIT ? OFFSET ?
+  `).all(query, limit, offset) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
+
+  const countRow = db.prepare(`
+    SELECT COUNT(*) as count FROM knowledge k
+    JOIN knowledge_fts ON knowledge_fts.rowid = k.id
+    WHERE knowledge_fts MATCH ?
+  `).get(query) as { count: number }
+
+  return {
+    items: rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) })),
+    total: countRow.count,
+  }
+}
+
+export function updateKnowledge(id: number, patch: Partial<Omit<KnowledgeInput, 'summary'>> & { summary?: string }) {
+  const current = getKnowledgeById(id)
+  if (!current) throw new Error(`Knowledge entry not found: ${id}`)
+
+  const db = getDb()
+  const next = {
+    title: patch.title ?? current.title,
+    content: patch.content ?? current.content,
+    summary: patch.summary ?? current.summary,
+    category: patch.category ?? current.category,
+    source: patch.source ?? current.source,
+    metadata: patch.metadata ? JSON.stringify(patch.metadata) : JSON.stringify(current.metadata),
+    importance_score: patch.importance_score ?? current.importance_score,
+  }
+
+  db.prepare(`
+    UPDATE knowledge
+    SET title=?, content=?, summary=?, category=?, source=?, metadata=?, importance_score=?, updated_at=datetime('now')
+    WHERE id=?
+  `).run(next.title, next.content, next.summary, next.category, next.source, next.metadata, next.importance_score, id)
+}
+
+export function getStaleKnowledge(daysOld = 30): Knowledge[] {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT * FROM knowledge
+    WHERE updated_at < datetime('now', '-' || ? || ' days')
+    ORDER BY updated_at ASC
+  `).all(daysOld) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
+  return rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) }))
+}
+
+export function getKnowledgeCountBySource(): { source: string; count: number }[] {
+  const db = getDb()
+  return db.prepare('SELECT source, COUNT(*) as count FROM knowledge GROUP BY source ORDER BY count DESC').all() as { source: string; count: number }[]
+}
+
+export function deleteKnowledgeBulk(ids: number[]): number {
+  if (!ids.length) return 0
+  const db = getDb()
+  const placeholders = ids.map(() => '?').join(',')
+  const result = db.prepare(`DELETE FROM knowledge WHERE id IN (${placeholders})`).run(...ids)
+  return result.changes
+}
+
+export function reScoreKnowledge(id: number, score: number): void {
+  const db = getDb()
+  db.prepare('UPDATE knowledge SET importance_score=?, updated_at=datetime(\'now\') WHERE id=?').run(Math.max(0, Math.min(1, score)), id)
 }

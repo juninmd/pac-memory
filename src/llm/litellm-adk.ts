@@ -58,10 +58,10 @@ export class LiteLlmAdk extends BaseLlm {
       timeoutMs?: number
     } = {}
   ) {
-    super({ model: stripLiteLlmPrefix(params.model ?? cfg.litellmModel) })
-    this.baseUrl = params.baseUrl ?? cfg.litellmBaseUrl
-    this.apiKey = params.apiKey ?? cfg.litellmApiKey
-    this.timeoutMs = params.timeoutMs ?? cfg.litellmTimeoutMs
+    super({ model: stripLiteLlmPrefix(params.model ?? cfg.llmModel) })
+    this.baseUrl = params.baseUrl ?? cfg.llmBaseUrl
+    this.apiKey = params.apiKey ?? cfg.llmApiKey
+    this.timeoutMs = params.timeoutMs ?? cfg.llmTimeoutMs
   }
 
   async *generateContentAsync(llmRequest: LlmRequest): AsyncGenerator<LlmResponse, void> {

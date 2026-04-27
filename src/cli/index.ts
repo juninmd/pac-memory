@@ -14,6 +14,32 @@ import { writeFileSync } from 'fs'
 
 const log = childLogger('cli')
 
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+let spinnerTimer: ReturnType<typeof setInterval> | null = null
+
+function startSpinner(msg: string) {
+  let frame = 0
+  process.stdout.write(`\r${SPINNER_FRAMES[frame]} ${msg}`)
+  spinnerTimer = setInterval(() => {
+    frame = (frame + 1) % SPINNER_FRAMES.length
+    process.stdout.write(`\r${SPINNER_FRAMES[frame]} ${msg}`)
+  }, 80)
+}
+
+function stopSpinner(msg: string, icon: 'ok' | 'fail' | 'info' = 'ok') {
+  if (spinnerTimer) {
+    clearInterval(spinnerTimer)
+    spinnerTimer = null
+  }
+  const iconStr = icon === 'ok' ? '✓' : icon === 'fail' ? '✗' : '➤'
+  process.stdout.write(`\r${iconStr} ${msg}\n`)
+}
+
+function logProgress(current: number, total: number, label: string) {
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0
+  process.stdout.write(`\r  ${label}: ${current}/${total} (${pct}%)`)
+}
+
 yargs(hideBin(process.argv))
   .scriptName('pac-memory')
   .usage('$0 <command> [options]')
@@ -31,7 +57,9 @@ yargs(hideBin(process.argv))
 
       if (!args['no-collect']) {
         log.info('Running initial full collection...')
+        startSpinner('Coletando dados iniciais…')
         await runFullCollection()
+        stopSpinner('Coleta inicial completa', 'ok')
       }
 
       startScheduler()
@@ -54,7 +82,9 @@ yargs(hideBin(process.argv))
 
   .command('collect', 'Run a one-shot full collection cycle', {}, async () => {
     getDb()
+    startSpinner('Coletando dados de todos os agentes…')
     await runFullCollection()
+    stopSpinner('Coleção completa', 'ok')
     closeDb()
   })
 
