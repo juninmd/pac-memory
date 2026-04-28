@@ -17,6 +17,7 @@ import { cfg } from '../shared/config.js'
 import { orchestratorEvents } from '../shared/events.js'
 import { runLearningCycle } from '../learning/cycle.js'
 import type { KnowledgeInput } from '../shared/types.js'
+import { scheduleBackfillEmbeddings } from '../knowledge/embedder.js'
 import { LiteLlmAdk } from '../llm/litellm-adk.js'
 
 const log = childLogger('orchestrator')
@@ -81,18 +82,28 @@ const runEvolutionTool = new FunctionTool({
 })
 
 // ── Coordinator Agent ─────────────────────────────────────────────────────
+// LiteLlmAdk (Google ADK adapter) works with any OpenAI-compatible endpoint.
+// For cloud-only providers (anthropic/google/openai without a local proxy),
+// the coordinator is created without an ADK model and falls back to direct tool execution.
 
-export const coordinator = new LlmAgent({
-  name: 'pac_memory_coordinator',
-  model: new LiteLlmAdk(),
-  description: 'Orchestrates all knowledge collection agents and self-evolution',
-  instruction: `You are the coordinator of pac-memory, an autonomous knowledge system.
+// LiteLlmAdk works with any OpenAI-compatible endpoint (ollama/litellm).
+// For cloud-only providers (anthropic/google/openai without a local proxy) the
+// coordinator is null and collections run via direct tool execution instead.
+const supportsAdkCoordinator = cfg.llmProvider === 'ollama' || cfg.llmProvider === 'litellm'
+
+export const coordinator: LlmAgent | null = supportsAdkCoordinator
+  ? new LlmAgent({
+    name: 'pac_memory_coordinator',
+    model: new LiteLlmAdk(),
+    description: 'Orchestrates all knowledge collection agents and self-evolution',
+    instruction: `You are the coordinator of pac-memory, an autonomous knowledge system.
 You have access to tools that collect information about the local machine, GitHub repos, environment, and AI news.
 When asked to collect all information, use all collection tools.
 When asked to evolve, use the run_evolution tool.
 Always report how many items were collected from each source.`,
-  tools: [collectSystemTool, collectNetworkTool, collectGithubTool, collectEnvTool, collectWebTool, runEvolutionTool],
-})
+    tools: [collectSystemTool, collectNetworkTool, collectGithubTool, collectEnvTool, collectWebTool, runEvolutionTool],
+  })
+  : null
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -119,6 +130,7 @@ async function runCollector(
     )
 
     bulkUpsert(processed)
+    scheduleBackfillEmbeddings()
     finishAgentRun(runId, processed.length)
     orchestratorEvents.emit('agent', { name, status: 'completed', count: processed.length })
     log.info({ agent: name, count: processed.length }, 'Collection complete')

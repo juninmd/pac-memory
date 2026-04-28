@@ -4,63 +4,90 @@ import { childLogger } from '../shared/logger.js'
 import { cfg } from '../shared/config.js'
 import { assertSafeFetchUrl } from '../security/url-policy.js'
 import { getAllowedLearningDomains, getLearningSources } from './sources.js'
+import type { LearningSource } from './sources.js'
 
 const log = childLogger('learning:rss')
 
 export interface RssLearningResult {
-  items: KnowledgeInput[]
+  items:   KnowledgeInput[]
   blocked: { source: string; url: string; reason: string }[]
 }
 
 export async function collectLearningFeeds(): Promise<RssLearningResult> {
-  const parser = new Parser()
   const allowedDomains = getAllowedLearningDomains()
-  const items: KnowledgeInput[] = []
-  const blocked: RssLearningResult['blocked'] = []
+  const sources = getLearningSources()
 
-  for (const source of getLearningSources()) {
-    try {
-      const safeUrl = await assertSafeFetchUrl(source.url, {
-        allowedDomains,
-        allowHttp: cfg.learningAllowHttp,
-      })
-      const xml = await fetchText(safeUrl)
-      const feed = await parser.parseString(xml)
+  // Fetch all feeds concurrently
+  const results = await Promise.allSettled(
+    sources.map((source) => fetchOneFeed(source, allowedDomains))
+  )
 
-      for (const entry of (feed.items ?? []).slice(0, cfg.learningMaxItemsPerSource)) {
-        const title = entry.title ?? 'Untitled'
-        const link = entry.link ?? source.url
-        const pubDate = entry.isoDate ?? entry.pubDate ?? ''
-        const content = entry.contentSnippet ?? entry.content ?? entry.summary ?? ''
+  const items:   KnowledgeInput[]                                  = []
+  const blocked: RssLearningResult['blocked']                      = []
+  const seenUrls = new Set<string>()
 
-        if (!content.trim()) continue
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i]
+    const source = sources[i]
 
-        items.push({
-          title: `[${source.name}] ${title}`,
-          content: `${content.slice(0, 2000)}\n\nSource: ${source.name}\nURL: ${link}\nPublished: ${pubDate}`,
-          category: source.category,
-          source: 'learning-rss',
-          summary: undefined,
-          metadata: {
-            feed: source.name,
-            url: link,
-            pubDate,
-            sourceType: 'rss',
-            learnedAt: new Date().toISOString(),
-            freshness: pubDate ? 'dated' : 'unknown',
-            confidence: 0.75,
-          },
-          importance_score: 0.7,
-        })
-      }
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err)
+    if (result.status === 'rejected') {
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason)
       blocked.push({ source: source.name, url: source.url, reason })
-      log.warn({ err, source: source.name, url: source.url }, 'Learning source skipped')
+      log.warn({ source: source.name, url: source.url, reason }, 'Learning source skipped')
+      continue
+    }
+
+    for (const item of result.value) {
+      const itemUrl = (item.metadata as Record<string, unknown>)?.url as string | undefined
+      if (itemUrl && seenUrls.has(itemUrl)) continue
+      if (itemUrl) seenUrls.add(itemUrl)
+      items.push(item)
     }
   }
 
+  log.info({ total: items.length, blocked: blocked.length, sources: sources.length }, 'Feeds collected')
   return { items, blocked }
+}
+
+async function fetchOneFeed(source: LearningSource, allowedDomains: Set<string>): Promise<KnowledgeInput[]> {
+  const safeUrl = await assertSafeFetchUrl(source.url, {
+    allowedDomains,
+    allowHttp: cfg.learningAllowHttp,
+  })
+  const xml  = await fetchText(safeUrl)
+  const feed = await new Parser().parseString(xml)
+
+  const now = new Date().toISOString()
+  return (feed.items ?? [])
+    .slice(0, cfg.learningMaxItemsPerSource)
+    .filter((entry) => {
+      const content = entry.contentSnippet ?? entry.content ?? entry.summary ?? ''
+      return content.trim().length > 0
+    })
+    .map((entry) => {
+      const title   = entry.title ?? 'Untitled'
+      const link    = entry.link ?? source.url
+      const pubDate = entry.isoDate ?? entry.pubDate ?? ''
+      const content = (entry.contentSnippet ?? entry.content ?? entry.summary ?? '').slice(0, 2000)
+
+      return {
+        title:            `[${source.name}] ${title}`,
+        content:          `${content}\n\nSource: ${source.name}\nURL: ${link}\nPublished: ${pubDate}`,
+        category:         source.category,
+        source:           'learning-rss',
+        summary:          undefined,
+        importance_score: source.weight ?? 0.7,
+        metadata: {
+          feed:       source.name,
+          url:        link,
+          pubDate,
+          sourceType: 'rss',
+          learnedAt:  now,
+          freshness:  pubDate ? 'dated' : 'unknown',
+          confidence: 0.75,
+        },
+      } satisfies KnowledgeInput
+    })
 }
 
 async function fetchText(url: URL): Promise<string> {
@@ -69,16 +96,14 @@ async function fetchText(url: URL): Promise<string> {
 
   try {
     const response = await fetch(url, {
-      signal: controller.signal,
+      signal:  controller.signal,
       headers: {
         'user-agent': 'pac-memory-learning-bot/1.0',
         accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.1',
       },
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const contentLength = Number(response.headers.get('content-length') ?? '0')
     if (contentLength > cfg.learningMaxBytes) {

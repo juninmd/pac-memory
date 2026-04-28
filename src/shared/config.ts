@@ -7,30 +7,63 @@ function optional(key: string, fallback: string): string {
   return process.env[key] ?? fallback
 }
 
-// LLM_PROVIDER=ollama → direct Ollama API (OLLAMA_BASE_URL + OLLAMA_MODEL)
-// LLM_PROVIDER=litellm (default) → LiteLLM proxy (LITELLM_BASE_URL + LITELLM_MODEL)
-const llmProvider = optional('LLM_PROVIDER', 'litellm') as 'ollama' | 'litellm'
-const ollamaBaseUrl = optional('OLLAMA_BASE_URL', 'http://127.0.0.1:11434')
-const ollamaModel   = optional('OLLAMA_MODEL', 'llama3.2:3b')
+export type LlmProvider = 'ollama' | 'openai' | 'anthropic' | 'google' | 'litellm'
+
+const llmProvider = optional('LLM_PROVIDER', 'ollama') as LlmProvider
+
+// Individual provider settings kept for backward compat
+const ollamaBaseUrl  = optional('OLLAMA_BASE_URL', 'http://127.0.0.1:11434')
+const ollamaModel    = optional('OLLAMA_MODEL', 'llama3.2:3b')
+const ollamaApiKey   = optional('OLLAMA_API_KEY', '')
 const litellmBaseUrl = optional('LITELLM_BASE_URL', 'http://127.0.0.1:4000')
 const litellmModel   = optional('LITELLM_MODEL', `ollama/${ollamaModel}`)
 const litellmApiKey  = optional('LITELLM_API_KEY', '')
-const ollamaApiKey   = optional('OLLAMA_API_KEY', '')
-const timeoutMs      = Number(optional('LLM_TIMEOUT_MS', optional('LITELLM_TIMEOUT_MS', optional('OLLAMA_TIMEOUT_MS', '60000'))))
+
+function resolveBaseUrl(): string {
+  if (process.env.LLM_BASE_URL) return process.env.LLM_BASE_URL
+  if (llmProvider === 'ollama')  return ollamaBaseUrl
+  if (llmProvider === 'litellm') return litellmBaseUrl
+  return '' // cloud providers use their own endpoint
+}
+
+function resolveModel(): string {
+  if (process.env.LLM_MODEL) return process.env.LLM_MODEL
+  switch (llmProvider) {
+    case 'ollama':    return ollamaModel
+    case 'litellm':   return litellmModel
+    case 'openai':    return optional('OPENAI_MODEL', 'gpt-4o-mini')
+    case 'anthropic': return optional('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001')
+    case 'google':    return optional('GOOGLE_MODEL', 'gemini-2.0-flash')
+    default:          return ollamaModel
+  }
+}
+
+function resolveApiKey(): string {
+  if (process.env.LLM_API_KEY) return process.env.LLM_API_KEY
+  switch (llmProvider) {
+    case 'ollama':    return ollamaApiKey
+    case 'litellm':   return litellmApiKey
+    case 'openai':    return optional('OPENAI_API_KEY', '')
+    case 'anthropic': return optional('ANTHROPIC_API_KEY', '')
+    case 'google':    return optional('GOOGLE_GENERATIVE_AI_API_KEY', '')
+    default:          return ''
+  }
+}
+
+const timeoutMs = Number(optional('LLM_TIMEOUT_MS', optional('LITELLM_TIMEOUT_MS', optional('OLLAMA_TIMEOUT_MS', '60000'))))
 
 export const cfg = {
   githubToken: optional('GITHUB_TOKEN', ''),
   githubUsername: optional('GITHUB_USERNAME', ''),
   controlApiToken: optional('CONTROL_API_TOKEN', ''),
 
-  // Unified LLM settings — use these in all LLM code
   llmProvider,
-  llmBaseUrl:  llmProvider === 'ollama' ? ollamaBaseUrl : litellmBaseUrl,
-  llmModel:    llmProvider === 'ollama' ? ollamaModel   : litellmModel,
-  llmApiKey:   llmProvider === 'ollama' ? ollamaApiKey  : litellmApiKey,
+  llmBaseUrl:   resolveBaseUrl(),
+  llmModel:     resolveModel(),
+  llmApiKey:    resolveApiKey(),
   llmTimeoutMs: timeoutMs,
 
-  // Legacy aliases kept for backward compat
+  // Backward compat aliases
   litellmBaseUrl,
   litellmApiKey,
   litellmModel,

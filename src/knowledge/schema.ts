@@ -62,6 +62,13 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   finished_at     TEXT
 );
 
+CREATE TABLE IF NOT EXISTS knowledge_embeddings (
+  knowledge_id  INTEGER PRIMARY KEY REFERENCES knowledge(id) ON DELETE CASCADE,
+  vector        TEXT    NOT NULL,
+  model         TEXT    NOT NULL DEFAULT '',
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_knowledge_category ON knowledge(category);
 CREATE INDEX IF NOT EXISTS idx_knowledge_source ON knowledge(source);
 CREATE INDEX IF NOT EXISTS idx_knowledge_updated ON knowledge(updated_at DESC);

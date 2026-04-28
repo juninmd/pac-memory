@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { buildKnowledgeDigest, exportDigestMarkdown, findRelatedKnowledge } from '../../knowledge/insights.js'
 import { listKnowledge } from '../../knowledge/repository.js'
+import { semanticSearch, embedRecentKnowledge } from '../../knowledge/embedder.js'
 
 export async function intelligenceRoutes(app: FastifyInstance) {
   app.get('/intelligence/digest', async (_req, reply) => {
@@ -15,7 +16,33 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'id must be a positive integer' })
     }
 
-    return reply.send({ items: findRelatedKnowledge(numericId, Number(limit)) })
+    const items = await findRelatedKnowledge(numericId, Number(limit))
+    return reply.send({ items })
+  })
+
+  // Semantic search via embeddings
+  app.get('/intelligence/semantic', async (req, reply) => {
+    const { q, limit = '10' } = req.query as Record<string, string>
+    if (!q?.trim()) return reply.status(400).send({ error: 'q param required' })
+    try {
+      const results = await semanticSearch(q.trim(), Math.min(Number(limit), 50))
+      return reply.send({ items: results, query: q.trim() })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(503).send({ error: `Semantic search unavailable: ${message}` })
+    }
+  })
+
+  // Trigger embedding backfill for recent entries
+  app.post('/intelligence/embed', async (_req, reply) => {
+    const { batchSize = '50' } = _req.query as Record<string, string>
+    try {
+      const count = await embedRecentKnowledge(Math.min(Number(batchSize), 200))
+      return reply.send({ embedded: count })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(503).send({ error: `Embedding failed: ${message}` })
+    }
   })
 
   app.get('/export/digest', async (req, reply) => {

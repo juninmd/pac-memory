@@ -192,6 +192,11 @@ yargs(hideBin(process.argv))
     closeDb()
   })
 
+  .command('mcp', 'Start the MCP server (stdio transport for Claude / AI clients)', {}, async () => {
+    const { startMcpServer } = await import('../mcp/server.js')
+    await startMcpServer()
+  })
+
   .command('export [file]', 'Export a markdown intelligence digest', (y) =>
     y.positional('file', { type: 'string', default: 'pac-memory-digest.md' }),
     async (args) => {

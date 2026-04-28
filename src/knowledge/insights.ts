@@ -9,6 +9,7 @@ import {
   listSources,
   searchKnowledge,
 } from './repository.js'
+import { findRelatedByEmbedding } from './embedder.js'
 
 export interface KnowledgeInsight {
   id: string
@@ -79,19 +80,28 @@ export function buildKnowledgeDigest(): KnowledgeDigest {
   return digest
 }
 
-export function findRelatedKnowledge(id: number, limit = 8): Knowledge[] {
+export async function findRelatedKnowledge(id: number, limit = 8): Promise<Knowledge[]> {
   const item = getKnowledgeById(id)
   if (!item) return []
 
-  const query = tokenize(`${item.title} ${safeText(item.summary)} ${item.category}`).slice(0, 8).join(' ')
-  const ftsRelated = query ? searchKnowledge(query, limit + 5).filter((candidate) => candidate.id !== id) : []
-  const seen = new Set(ftsRelated.map((candidate) => candidate.id))
-  const categoryFallback = listKnowledge(item.category, limit + 5)
-    .filter((candidate) => candidate.id !== id && !seen.has(candidate.id))
+  // Try semantic (embedding) first; fall back to FTS + category overlap
+  const embeddingResults = await findRelatedByEmbedding(id, limit).catch(() => [] as Knowledge[])
+  if (embeddingResults.length >= limit) return embeddingResults
 
-  return [...ftsRelated, ...categoryFallback]
+  const seen = new Set(embeddingResults.map(k => k.id))
+  const query = tokenize(`${item.title} ${safeText(item.summary)} ${item.category}`).slice(0, 8).join(' ')
+  const ftsRelated = query
+    ? searchKnowledge(query, limit + 5).filter(k => k.id !== id && !seen.has(k.id))
+    : []
+  ftsRelated.forEach(k => seen.add(k.id))
+
+  const categoryFallback = listKnowledge(item.category, limit + 5)
+    .filter(k => k.id !== id && !seen.has(k.id))
+
+  const merged = [...embeddingResults, ...ftsRelated, ...categoryFallback]
     .sort((a, b) => relatedScore(item, b) - relatedScore(item, a))
-    .slice(0, limit)
+
+  return merged.slice(0, limit)
 }
 
 export function exportDigestMarkdown(digest = buildKnowledgeDigest()): string {
