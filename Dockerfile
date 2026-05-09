@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml package.json ./
 RUN pnpm install --frozen-lockfile
+RUN pnpm rebuild better-sqlite3
 
 COPY . .
 RUN pnpm run build
