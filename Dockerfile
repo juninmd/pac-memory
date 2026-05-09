@@ -28,4 +28,4 @@ ENV NODE_ENV=production
 ENV DB_PATH=/app/data/pac-memory.db
 ENV HOST=0.0.0.0
 
-CMD ["node", "dist/cli/index.js", "start", "--no-collect"]
+CMD ["node", "dist/cli/index.js", "start"]
