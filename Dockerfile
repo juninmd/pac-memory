@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt
 
 WORKDIR /app
 
-COPY pnpm-lock.yaml package.json ./
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -18,12 +18,11 @@ RUN apt-get update && apt-get install -y sqlite3 python3 make g++ && rm -rf /var
 
 WORKDIR /app
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prompts ./prompts
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
-RUN pnpm rebuild better-sqlite3
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prompts ./prompts
 
 EXPOSE 3000
 
