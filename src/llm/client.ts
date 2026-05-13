@@ -88,6 +88,14 @@ export function buildLanguageModel(
       const client = createGoogleGenerativeAI({ apiKey })
       return client(model)
     }
+    case 'openrouter': {
+      const client = createOpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey,
+        headers: { 'HTTP-Referer': 'https://github.com/pac-memory', 'X-Title': 'pac-memory' },
+      })
+      return client(model)
+    }
     case 'litellm':
     default: {
       const client = createOpenAI({ baseURL: `${baseUrl}/v1`, apiKey: apiKey || 'placeholder' })
@@ -116,8 +124,10 @@ export function buildEmbeddingModel(): EmbeddingModel {
       const client = createGoogleGenerativeAI({ apiKey: cfg.llmApiKey })
       return client.textEmbeddingModel('text-embedding-004')
     }
+    case 'openrouter':
+      // OpenRouter has no embedding API; fall back to local ollama
     case 'anthropic':
-      log.warn('Anthropic has no embedding API; configure EMBED_PROVIDER=ollama or openai instead')
+      log.warn(`${cfg.llmProvider} has no embedding API; falling back to ollama nomic-embed-text`)
       // falls through to litellm
     case 'litellm':
     default: {
@@ -229,6 +239,15 @@ export async function checkLlmHealth(): Promise<LlmHealthStatus> {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
       const data = await resp.json() as { models?: OllamaModel[] }
       return { ...base, ok: true, models: data.models ?? [], latencyMs: Date.now() - start, circuitState: circuitBreaker.state }
+    }
+
+    if (cfg.llmProvider === 'openrouter') {
+      const resp = await fetch('https://openrouter.ai/api/v1/models', {
+        signal: AbortSignal.timeout(8000),
+        headers: { authorization: `Bearer ${cfg.llmApiKey}` },
+      })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      return { ...base, ok: true, latencyMs: Date.now() - start, circuitState: circuitBreaker.state }
     }
 
     if (cfg.llmProvider === 'litellm') {

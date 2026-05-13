@@ -46,7 +46,7 @@ describe('Knowledge Insights', () => {
     expect(digest.insights.length).toBeGreaterThan(0)
   })
 
-  it('finds related knowledge using search and category fallback', () => {
+  it('finds related knowledge using search and category fallback', async () => {
     bulkUpsert([
       baseItem,
       {
@@ -63,7 +63,7 @@ describe('Knowledge Insights', () => {
       },
     ])
 
-    const related = findRelatedKnowledge(1)
+    const related = await findRelatedKnowledge(1)
 
     expect(related.some((item) => item.title === 'Node Memory Pressure')).toBe(true)
     expect(related.every((item) => item.id !== 1)).toBe(true)

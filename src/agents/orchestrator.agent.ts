@@ -27,7 +27,8 @@ const log = childLogger('orchestrator')
 const collectSystemTool = new FunctionTool({
   name: 'collect_system_info',
   description: 'Collects hardware and OS information from the local machine',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: async () => {
     const items = await runCollector('system', collectSystemInfo)
     return { collected: items.length }
@@ -37,7 +38,8 @@ const collectSystemTool = new FunctionTool({
 const collectNetworkTool = new FunctionTool({
   name: 'collect_network_info',
   description: 'Collects network interfaces, public IP and geo data',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: async () => {
     const items = await runCollector('network', collectNetworkInfo)
     return { collected: items.length }
@@ -47,7 +49,8 @@ const collectNetworkTool = new FunctionTool({
 const collectGithubTool = new FunctionTool({
   name: 'collect_github_info',
   description: 'Collects GitHub repos, stars, languages and activity',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: async () => {
     const items = await runCollector('github', collectGithubInfo)
     return { collected: items.length }
@@ -57,7 +60,8 @@ const collectGithubTool = new FunctionTool({
 const collectEnvTool = new FunctionTool({
   name: 'collect_env_vars',
   description: 'Collects safe (non-sensitive) environment variables',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: async () => {
     const items = await runCollector('env', () => Promise.resolve(collectEnvVars()))
     return { collected: items.length }
@@ -67,7 +71,8 @@ const collectEnvTool = new FunctionTool({
 const collectWebTool = new FunctionTool({
   name: 'collect_web_monitor',
   description: 'Collects latest articles from Claude, OpenAI, VSCode, GitHub and Google AI blogs',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: async () => {
     const items = await runCollector('web-monitor', collectWebMonitor)
     return { collected: items.length }
@@ -77,7 +82,8 @@ const collectWebTool = new FunctionTool({
 const runEvolutionTool = new FunctionTool({
   name: 'run_evolution',
   description: 'Analyzes knowledge gaps and generates new collector code to expand capabilities',
-  parameters: z.object({}),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parameters: z.object({}) as any,
   execute: () => runEvolutionCycle(),
 })
 
