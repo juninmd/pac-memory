@@ -29,7 +29,6 @@ const DEFAULT_SOURCES: LearningSource[] = [
   { name: 'InfoQ',                 url: 'https://www.infoq.com/feed/',                          category: 'programming', weight: 0.75 },
   { name: 'Lobsters',              url: 'https://lobste.rs/rss',                                category: 'programming', weight: 0.7 },
   { name: 'Hacker News Best',      url: 'https://hnrss.org/best',                               category: 'programming', weight: 0.75 },
-  { name: 'DEV.to',                url: 'https://dev.to/feed',                                  category: 'programming', weight: 0.65 },
   { name: 'Rust Blog',             url: 'https://blog.rust-lang.org/feed.xml',                  category: 'programming', weight: 0.85 },
   { name: 'This Week in Rust',     url: 'https://this-week-in-rust.org/rss.xml',                category: 'programming', weight: 0.8 },
   { name: 'The Changelog',         url: 'https://changelog.com/news/feed',                      category: 'programming', weight: 0.7 },
