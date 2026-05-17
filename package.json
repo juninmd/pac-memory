@@ -44,7 +44,7 @@
     "@ai-sdk/openai": "^3.0.53",
     "@fastify/static": "^9.1.1",
     "@fastify/websocket": "^11.2.0",
-    "@google/adk": "^0.6.1",
+    "@google/adk": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@octokit/rest": "^22.0.1",
     "ai": "^6.0.168",
