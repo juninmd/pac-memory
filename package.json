@@ -41,7 +41,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/google": "^3.0.64",
-    "@ai-sdk/openai": "^3.0.53",
+    "@ai-sdk/openai": "^3.0.64",
     "@fastify/static": "^9.1.1",
     "@fastify/websocket": "^11.2.0",
     "@google/adk": "^0.6.1",
