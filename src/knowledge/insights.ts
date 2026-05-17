@@ -1,5 +1,6 @@
 import type { Knowledge } from '../shared/types.js'
 import {
+  captureMetricsSnapshot,
   countKnowledge,
   getKnowledgeById,
   listAgentRuns,
@@ -77,6 +78,9 @@ export function buildKnowledgeDigest(): KnowledgeDigest {
   }
 
   digest.insights = generateInsights(digest, all)
+
+  try { captureMetricsSnapshot() } catch { /* best-effort */ }
+
   return digest
 }
 

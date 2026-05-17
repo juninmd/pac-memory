@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { LanguageModel, EmbeddingModel } from 'ai'
-import { cfg, type LlmProvider } from '../shared/config.js'
+import { cfg, type LlmProvider, type FallbackProvider } from '../shared/config.js'
 import { childLogger } from '../shared/logger.js'
 
 const log = childLogger('llm-client')
@@ -125,10 +125,10 @@ export function buildEmbeddingModel(): EmbeddingModel {
       return client.textEmbeddingModel('text-embedding-004')
     }
     case 'openrouter':
-      // OpenRouter has no embedding API; fall back to local ollama
     case 'anthropic':
       log.warn(`${cfg.llmProvider} has no embedding API; falling back to ollama nomic-embed-text`)
       // falls through to litellm
+      // eslint-disable-next-line no-fallthrough
     case 'litellm':
     default: {
       const client = createOpenAI({
@@ -211,6 +211,39 @@ export async function generateTextWithRetry(prompt: string, maxRetries = 3): Pro
     }
   }
   throw lastErr
+}
+
+async function tryFallback(prompt: string, fb: FallbackProvider): Promise<LlmTextResponse> {
+  const model = buildLanguageModel(fb.provider, fb.model, '', fb.apiKey)
+  const { text, response } = await aiGenerateText({
+    model,
+    prompt,
+    abortSignal: AbortSignal.timeout(cfg.llmTimeoutMs),
+  })
+  return { content: text, provider: fb.provider, model: fb.model, raw: JSON.stringify(response) }
+}
+
+export async function generateTextWithFallback(prompt: string): Promise<LlmTextResponse> {
+  try {
+    return await generateTextWithRetry(prompt)
+  } catch (primaryErr) {
+    const chain = cfg.llmFallbackChain
+    if (!chain.length) throw primaryErr
+
+    log.warn({ primaryErr, fallbackCount: chain.length }, 'Primary LLM failed, trying fallback chain')
+    let lastErr: unknown = primaryErr
+    for (const fb of chain) {
+      try {
+        const result = await tryFallback(prompt, fb)
+        log.info({ provider: fb.provider, model: fb.model }, 'Fallback LLM succeeded')
+        return result
+      } catch (fbErr) {
+        log.warn({ fbErr, provider: fb.provider, model: fb.model }, 'Fallback LLM failed')
+        lastErr = fbErr
+      }
+    }
+    throw lastErr
+  }
 }
 
 export async function embedText(text: string): Promise<number[]> {

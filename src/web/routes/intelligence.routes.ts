@@ -1,11 +1,24 @@
 import type { FastifyInstance } from 'fastify'
 import { buildKnowledgeDigest, exportDigestMarkdown, findRelatedKnowledge } from '../../knowledge/insights.js'
-import { listKnowledge } from '../../knowledge/repository.js'
+import { getMetricsHistory, listKnowledge } from '../../knowledge/repository.js'
 import { semanticSearch, embedRecentKnowledge } from '../../knowledge/embedder.js'
+import { generateDailyDigest, getLatestDigest } from '../../daily/digest-generator.js'
 
 export async function intelligenceRoutes(app: FastifyInstance) {
   app.get('/intelligence/digest', async (_req, reply) => {
     return reply.send(buildKnowledgeDigest())
+  })
+
+  // Daily digest — GET latest saved, POST to generate now
+  app.get('/intelligence/daily-digest', async (_req, reply) => {
+    const digest = getLatestDigest()
+    if (!digest) return reply.status(404).send({ error: 'No daily digest yet' })
+    return reply.send(digest)
+  })
+
+  app.post('/intelligence/daily-digest/generate', async (_req, reply) => {
+    const result = await generateDailyDigest()
+    return reply.send(result)
   })
 
   app.get('/knowledge/:id/related', async (req, reply) => {
@@ -43,6 +56,12 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       const message = err instanceof Error ? err.message : String(err)
       return reply.status(503).send({ error: `Embedding failed: ${message}` })
     }
+  })
+
+  app.get('/intelligence/metrics-history', async (req, reply) => {
+    const { days = '30' } = req.query as Record<string, string>
+    const d = Math.min(Math.max(1, Number(days)), 365)
+    return reply.send({ snapshots: getMetricsHistory(d), days: d })
   })
 
   app.get('/export/digest', async (req, reply) => {

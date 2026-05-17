@@ -77,4 +77,22 @@ CREATE INDEX IF NOT EXISTS idx_sources_type ON sources(type);
 CREATE INDEX IF NOT EXISTS idx_sources_active ON sources(is_active);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_name, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_evolution_status ON evolution_log(status);
+
+CREATE TABLE IF NOT EXISTS knowledge_metrics_snapshots (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  captured_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  total           INTEGER NOT NULL,
+  avg_importance  REAL    NOT NULL,
+  stale_count     INTEGER NOT NULL,
+  category_count  INTEGER NOT NULL,
+  source_count    INTEGER NOT NULL,
+  embedded_count  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_metrics_captured ON knowledge_metrics_snapshots(captured_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_created_at  ON knowledge(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_knowledge_source_cat  ON knowledge(source, category);
+CREATE INDEX IF NOT EXISTS idx_evolution_log_created ON evolution_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_embeddings_model      ON knowledge_embeddings(model);
 `

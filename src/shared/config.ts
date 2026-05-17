@@ -1,5 +1,6 @@
 import { config } from 'dotenv'
 import { existsSync } from 'fs'
+import { randomBytes } from 'crypto'
 
 if (existsSync('.env')) config()
 
@@ -57,10 +58,18 @@ function resolveApiKey(): string {
 
 const timeoutMs = Number(optional('LLM_TIMEOUT_MS', optional('LITELLM_TIMEOUT_MS', optional('OLLAMA_TIMEOUT_MS', '60000'))))
 
+function resolveControlToken(): string {
+  const fromEnv = optional('CONTROL_API_TOKEN', '')
+  if (fromEnv) return fromEnv
+  const ephemeral = randomBytes(16).toString('hex')
+  console.warn(`[pac-memory] CONTROL_API_TOKEN not set — using ephemeral token: ${ephemeral}`)
+  return ephemeral
+}
+
 export const cfg = {
   githubToken: optional('GITHUB_TOKEN', ''),
   githubUsername: optional('GITHUB_USERNAME', ''),
-  controlApiToken: optional('CONTROL_API_TOKEN', ''),
+  controlApiToken: resolveControlToken(),
 
   llmProvider,
   llmBaseUrl:   resolveBaseUrl(),
@@ -91,4 +100,25 @@ export const cfg = {
   dbPath: optional('DB_PATH', 'data/pac-memory.db'),
   generatedDir: optional('GENERATED_DIR', 'generated'),
   promptsDir: optional('PROMPTS_DIR', 'prompts'),
+  fastNewsApiUrl: optional('FAST_NEWS_API_URL', ''),
+  dailyDigestHour: Number(optional('DAILY_DIGEST_HOUR', '7')),
+
+  llmFallbackChain: parseFallbackChain(),
+}
+
+export interface FallbackProvider {
+  provider: LlmProvider
+  model: string
+  apiKey: string
+}
+
+function parseFallbackChain(): FallbackProvider[] {
+  const raw = optional('LLM_FALLBACK_CHAIN', '')
+  if (!raw.trim()) return []
+  return raw.split(',').map((entry, idx) => {
+    const [provider, ...modelParts] = entry.trim().split(':')
+    const model = modelParts.join(':')
+    const apiKey = optional(`FALLBACK_${idx}_API_KEY`, '')
+    return { provider: provider as LlmProvider, model, apiKey }
+  }).filter(e => e.provider && e.model)
 }

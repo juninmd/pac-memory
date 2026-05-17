@@ -10,8 +10,10 @@ import {
   listCategories,
   updateKnowledge,
 } from '../../knowledge/repository.js'
+import { semanticSearch } from '../../knowledge/embedder.js'
 import { generateTextWithRetry } from '../../llm/client.js'
 import { childLogger } from '../../shared/logger.js'
+import type { Knowledge } from '../../shared/types.js'
 
 const log = childLogger('knowledge-routes')
 
@@ -110,7 +112,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   })
 
   app.post('/search', async (req, reply) => {
-    const { query, limit = 20, offset = 0 } = req.body as { query: string; limit?: number; offset?: number }
+    const { query, limit = 20, offset = 0, mode } = req.body as { query: string; limit?: number; offset?: number; mode?: string }
     if (!query || typeof query !== 'string') {
       return reply.status(400).send({ error: 'query é obrigatória' })
     }
@@ -121,8 +123,56 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     if (!safeQuery) return reply.send({ items: [], total: 0, query: '' })
     const lim = Math.min(Math.max(1, Number(limit)), 100)
     const off = Math.max(0, Number(offset))
+
+    if (mode === 'hybrid') {
+      const ftsResult = searchKnowledgePaginated(safeQuery, lim, off)
+      let semanticItems: (Knowledge & { similarity: number })[] = []
+      try {
+        semanticItems = await semanticSearch(safeQuery, lim)
+      } catch {
+        // embedding unavailable — proceed with FTS only
+      }
+
+      const seen = new Set<number>()
+      const merged: (Knowledge & { score: number })[] = []
+
+      for (const item of semanticItems) {
+        seen.add(item.id)
+        merged.push({ ...item, score: item.similarity * 0.6 + 0.4 })
+      }
+      for (const item of ftsResult.items) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id)
+          merged.push({ ...item, score: 0.4 })
+        }
+      }
+      merged.sort((a, b) => b.score - a.score)
+
+      return reply.send({ items: merged.slice(0, lim), total: merged.length, query: safeQuery, mode: 'hybrid' })
+    }
+
     const result = searchKnowledgePaginated(safeQuery, lim, off)
     return reply.send({ ...result, query: safeQuery })
+  })
+
+  app.post('/search/semantic', async (req, reply) => {
+    const { query, limit = 10 } = req.body as { query: string; limit?: number }
+    if (!query || typeof query !== 'string') {
+      return reply.status(400).send({ error: 'query é obrigatória' })
+    }
+    if (query.length > 500) {
+      return reply.status(400).send({ error: 'query deve ter menos de 500 caracteres' })
+    }
+    const safeQuery = sanitizeQuery(query)
+    if (!safeQuery) return reply.send({ items: [], query: '' })
+    const lim = Math.min(Math.max(1, Number(limit)), 50)
+    try {
+      const items = await semanticSearch(safeQuery, lim)
+      return reply.send({ items, query: safeQuery })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return reply.status(503).send({ error: 'Embedding model unavailable', detail: message, code: 'LLM_UNAVAILABLE' })
+    }
   })
 
   app.post('/qa', async (req, reply) => {

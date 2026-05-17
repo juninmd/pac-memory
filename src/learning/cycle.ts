@@ -4,6 +4,7 @@ import { summarize } from '../knowledge/summarizer.js'
 import { childLogger } from '../shared/logger.js'
 import { orchestratorEvents } from '../shared/events.js'
 import { collectLearningFeeds } from './rss-learning.js'
+import { collectFastNews } from './fast-news-reader.js'
 
 const log = childLogger('learning-cycle')
 
@@ -20,7 +21,11 @@ export async function runLearningCycle(): Promise<LearningCycleResult> {
   orchestratorEvents.emit('agent', { name: agentName, status: 'running' })
 
   try {
-    const { items, blocked } = await collectLearningFeeds()
+    const [{ items: rssItems, blocked }, fastNewsItems] = await Promise.all([
+      collectLearningFeeds(),
+      collectFastNews(24),
+    ])
+    const items = [...rssItems, ...fastNewsItems]
     const processed = await Promise.all(items.map(async (item) => ({
       ...item,
       summary: item.summary ?? await summarize(item.title, item.content),

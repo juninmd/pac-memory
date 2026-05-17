@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, renameSync, unlinkSync, existsSync } from 'fs'
 import { join } from 'path'
 import { validateTypeScript } from './validator.js'
 import { updateEvolutionStatus, insertEvolutionLog } from '../knowledge/repository.js'
@@ -17,13 +17,7 @@ export async function deployCollector(
 
   const fileName = `${suggestion.name}.agent.ts`
   const filePath = join(cfg.generatedDir, fileName)
-
-  // Write the generated file
-  writeFileSync(filePath, code, 'utf-8')
-  log.info({ filePath }, 'Generated file written')
-
-  // Validate before deploying
-  const { valid, errors } = await validateTypeScript(filePath)
+  const tmpPath  = `${filePath}.tmp`
 
   const logId = evolutionLogId ?? insertEvolutionLog({
     trigger_reason: `auto-generated: ${suggestion.name}`,
@@ -32,12 +26,19 @@ export async function deployCollector(
     gemini_prompt: suggestion.approach,
   })
 
-  if (!valid) {
-    log.error({ filePath, errors }, 'Generated code failed TypeScript validation — NOT deployed')
+  writeFileSync(tmpPath, code, 'utf-8')
+  log.info({ tmpPath }, 'Generated file written to temp path')
+
+  const validation = await validateTypeScript(tmpPath).catch(err => ({ valid: false, errors: String(err) }))
+
+  if (!validation.valid) {
+    if (existsSync(tmpPath)) unlinkSync(tmpPath)
+    log.error({ filePath, errors: validation.errors }, 'Generated code failed TypeScript validation — NOT deployed, temp file removed')
     updateEvolutionStatus(logId, 'failed', filePath)
     return { success: false, filePath }
   }
 
+  renameSync(tmpPath, filePath)
   updateEvolutionStatus(logId, 'deployed', filePath)
   log.info({ filePath }, 'Collector deployed successfully')
   return { success: true, filePath }

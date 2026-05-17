@@ -22,7 +22,8 @@
     "dev:export": "tsx src/cli/index.ts export",
     "dev:mcp": "tsx src/cli/index.ts mcp",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fix-db": "tsx scripts/fix-db.ts"
   },
   "keywords": [
     "autonomous",

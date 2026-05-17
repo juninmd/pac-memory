@@ -2,7 +2,7 @@ import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { getDb, closeDb } from '../knowledge/database.js'
 import { searchKnowledge, listKnowledge, countKnowledge } from '../knowledge/repository.js'
-import { runFullCollection, startScheduler } from '../agents/orchestrator.agent.js'
+import { runFullCollection } from '../agents/orchestrator.agent.js'
 import { startWebServer } from '../web/server.js'
 import { analyzeGaps } from '../evolution/gap-analyzer.js'
 import { generateCollector } from '../evolution/code-generator.js'
@@ -62,8 +62,7 @@ yargs(hideBin(process.argv))
         stopSpinner('Coleta inicial completa', 'ok')
       }
 
-      startScheduler()
-      log.info('System running. Press Ctrl+C to stop.')
+      log.info('System running. Scheduling via k8s CronJobs. Press Ctrl+C to stop.')
 
       process.on('SIGINT', () => {
         log.info('Shutting down...')

@@ -13,6 +13,7 @@ import { intelligenceRoutes } from './routes/intelligence.routes.js'
 import { controlRoutes } from './routes/control.routes.js'
 import { sourcesRoutes } from './routes/sources.routes.js'
 import { llmRoutes } from './routes/llm.routes.js'
+import { healthRoutes } from './routes/health.routes.js'
 import { closeDb } from '../knowledge/database.js'
 type WebSocket = { readyState: number; send: (data: string) => void; on: (event: string, cb: () => void) => void; close?: () => void }
 
@@ -55,7 +56,7 @@ export async function startWebServer() {
   app.addHook('onClose', () => {
     log.info('Fastify server closing')
     for (const ws of activeClients) {
-      try { if (ws.close) ws.close() } catch {}
+      try { if (ws.close) ws.close() } catch { /* ignore */ }
     }
     activeClients.clear()
   })
@@ -84,6 +85,7 @@ export async function startWebServer() {
   orchestratorEvents.on('agent', (data) => broadcast('agent', data))
   orchestratorEvents.on('evolution', (data) => broadcast('evolution', data))
 
+  await app.register(healthRoutes)  // sem prefixo — probes k8s chamam /health/live e /health/ready
   await app.register(knowledgeRoutes, { prefix: '/api' })
   await app.register(agentRoutes, { prefix: '/api' })
   await app.register(evolutionRoutes, { prefix: '/api' })

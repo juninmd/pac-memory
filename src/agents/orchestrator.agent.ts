@@ -1,6 +1,5 @@
 import { LlmAgent, FunctionTool } from '@google/adk'
 import { z } from 'zod'
-import cron from 'node-cron'
 import { collectSystemInfo } from './system.agent.js'
 import { collectNetworkInfo } from './network.agent.js'
 import { collectGithubInfo } from './github.agent.js'
@@ -113,7 +112,7 @@ Always report how many items were collected from each source.`,
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-async function runCollector(
+export async function runCollector(
   name: string,
   fn: () => Promise<KnowledgeInput[]>
 ): Promise<KnowledgeInput[]> {
@@ -123,7 +122,8 @@ async function runCollector(
     const items = await fn()
 
     // Process items: summarize and categorize via configured LLM when available.
-    const processed = await Promise.all(
+    // Promise.allSettled garante que falha em 1 item não derruba a coleção inteira.
+    const results = await Promise.allSettled(
       items.map(async (item) => {
         if (!item.summary) {
           item.summary = await summarize(item.title, item.content)
@@ -134,6 +134,9 @@ async function runCollector(
         return item
       })
     )
+    const processed = results.filter(r => r.status === 'fulfilled').map(r => r.value)
+    const failures = results.filter(r => r.status === 'rejected').length
+    if (failures > 0) log.warn({ agent: name, failures }, 'Some items failed LLM processing')
 
     bulkUpsert(processed)
     scheduleBackfillEmbeddings()
@@ -150,57 +153,6 @@ async function runCollector(
   }
 }
 
-// ── Scheduler ─────────────────────────────────────────────────────────────
-
-export function startScheduler() {
-  log.info('Starting cron scheduler')
-
-  // System + network: every 5 minutes
-  cron.schedule('*/5 * * * *', async () => {
-    await runCollector('system', collectSystemInfo)
-    await runCollector('network', collectNetworkInfo)
-  })
-
-  // Env vars: every 30 minutes
-  cron.schedule('*/30 * * * *', () => {
-    runCollector('env', () => Promise.resolve(collectEnvVars()))
-  })
-
-  // GitHub: every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
-    await runCollector('github', collectGithubInfo)
-  })
-
-  // Web monitor: every hour
-  cron.schedule('0 * * * *', async () => {
-    await runCollector('web-monitor', collectWebMonitor)
-  })
-
-  // Autonomous learning: configurable (default 6h)
-  const learningHours = cfg.learningIntervalHours
-  cron.schedule(`0 */${learningHours} * * *`, async () => {
-    log.info('Starting scheduled learning cycle')
-    await runLearningCycle()
-  })
-
-  // Evolution: configurable (default 24h)
-  const evolutionHours = cfg.evolutionIntervalHours
-  cron.schedule(`0 */${evolutionHours} * * *`, async () => {
-    log.info('Starting scheduled evolution cycle')
-    orchestratorEvents.emit('evolution', { phase: 'start', status: 'scheduled' })
-    const suggestions = await analyzeGaps()
-    for (const s of suggestions.slice(0, 2)) {
-      try {
-        const code = await generateCollector(s)
-        await deployCollector(s, code)
-      } catch (err) {
-        log.error({ err, name: s.name }, 'Scheduled evolution failed')
-      }
-    }
-  })
-
-  log.info({ learningHours, evolutionHours }, 'Scheduler started')
-}
 
 export async function runEvolutionCycle(): Promise<{ result: string; suggestions: number }> {
   log.info('Running evolution cycle')

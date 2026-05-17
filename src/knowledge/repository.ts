@@ -1,9 +1,12 @@
-import { EventEmitter } from 'events'
 import type { AgentRun, EvolutionLog, Knowledge, KnowledgeInput, Source, SourceInput } from '../shared/types.js'
 import { getDb } from './database.js'
 import { childLogger } from '../shared/logger.js'
 
 const log = childLogger('repository')
+
+function safeJsonParse(raw: string, fallback: Record<string, unknown> = {}): Record<string, unknown> {
+  try { return JSON.parse(raw) as Record<string, unknown> } catch { return fallback }
+}
 
 export function upsertKnowledge(item: KnowledgeInput): number {
   const db = getDb()
@@ -45,7 +48,7 @@ export function searchKnowledge(query: string, limit = 20): Knowledge[] {
     LIMIT ?
   `).all(query, limit) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
 
-  return rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) }))
+  return rows.map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
 }
 
 export function getKnowledgeById(id: number): Knowledge | undefined {
@@ -62,7 +65,7 @@ export function listKnowledge(category?: string, limit = 50, offset = 0): Knowle
     : db.prepare('SELECT * FROM knowledge ORDER BY updated_at DESC LIMIT ? OFFSET ?').all(limit, offset)
 
   return (rows as (Omit<Knowledge, 'metadata'> & { metadata: string })[])
-    .map(r => ({ ...r, metadata: JSON.parse(r.metadata) }))
+    .map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
 }
 
 export function countKnowledge(): number {
@@ -100,7 +103,7 @@ export function listConfiguredSources(type?: Source['type']): Source[] {
   return (rows as (Omit<Source, 'config' | 'is_active'> & { config: string; is_active: number })[])
     .map((row) => ({
       ...row,
-      config: JSON.parse(row.config),
+      config: safeJsonParse(row.config),
       is_active: row.is_active === 1,
     }))
 }
@@ -224,7 +227,7 @@ export function searchKnowledgePaginated(query: string, limit = 20, offset = 0):
   `).get(query) as { count: number }
 
   return {
-    items: rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) })),
+    items: rows.map(r => ({ ...r, metadata: safeJsonParse(r.metadata) })),
     total: countRow.count,
   }
 }
@@ -258,7 +261,7 @@ export function getStaleKnowledge(daysOld = 30): Knowledge[] {
     WHERE updated_at < datetime('now', '-' || ? || ' days')
     ORDER BY updated_at ASC
   `).all(daysOld) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
-  return rows.map(r => ({ ...r, metadata: JSON.parse(r.metadata) }))
+  return rows.map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
 }
 
 export function getKnowledgeCountBySource(): { source: string; count: number }[] {
@@ -277,4 +280,45 @@ export function deleteKnowledgeBulk(ids: number[]): number {
 export function reScoreKnowledge(id: number, score: number): void {
   const db = getDb()
   db.prepare('UPDATE knowledge SET importance_score=?, updated_at=datetime(\'now\') WHERE id=?').run(Math.max(0, Math.min(1, score)), id)
+}
+
+export interface MetricsSnapshot {
+  id: number
+  captured_at: string
+  total: number
+  avg_importance: number
+  stale_count: number
+  category_count: number
+  source_count: number
+  embedded_count: number
+}
+
+export function captureMetricsSnapshot(): void {
+  const db = getDb()
+  const staleThreshold = 14
+  const stats = db.transaction(() => {
+    const { total } = db.prepare('SELECT COUNT(*) as total FROM knowledge').get() as { total: number }
+    const { avg_importance } = db.prepare('SELECT COALESCE(AVG(importance_score), 0) as avg_importance FROM knowledge').get() as { avg_importance: number }
+    const { stale_count } = db.prepare(
+      `SELECT COUNT(*) as stale_count FROM knowledge WHERE updated_at < datetime('now', '-' || ? || ' days')`
+    ).get(staleThreshold) as { stale_count: number }
+    const { category_count } = db.prepare('SELECT COUNT(DISTINCT category) as category_count FROM knowledge').get() as { category_count: number }
+    const { source_count } = db.prepare('SELECT COUNT(DISTINCT source) as source_count FROM knowledge').get() as { source_count: number }
+    const { embedded_count } = db.prepare('SELECT COUNT(*) as embedded_count FROM knowledge_embeddings').get() as { embedded_count: number }
+    return { total, avg_importance, stale_count, category_count, source_count, embedded_count }
+  })()
+
+  db.prepare(`
+    INSERT INTO knowledge_metrics_snapshots (total, avg_importance, stale_count, category_count, source_count, embedded_count)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(stats.total, stats.avg_importance, stats.stale_count, stats.category_count, stats.source_count, stats.embedded_count)
+}
+
+export function getMetricsHistory(days = 30): MetricsSnapshot[] {
+  const db = getDb()
+  return db.prepare(`
+    SELECT * FROM knowledge_metrics_snapshots
+    WHERE captured_at >= datetime('now', '-' || ? || ' days')
+    ORDER BY captured_at ASC
+  `).all(days) as MetricsSnapshot[]
 }

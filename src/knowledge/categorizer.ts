@@ -2,7 +2,7 @@ import { childLogger } from '../shared/logger.js'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { cfg } from '../shared/config.js'
-import { generateText } from '../llm/client.js'
+import { generateTextWithFallback } from '../llm/client.js'
 
 const log = childLogger('categorizer')
 
@@ -29,7 +29,7 @@ export async function categorize(title: string, content: string): Promise<string
   try {
     const template = loadPrompt()
     const prompt = template.replace('{title}', title).replace('{content}', content.slice(0, 500))
-    const result = await generateText(prompt)
+    const result = await generateTextWithFallback(prompt)
     const cat = result.content.trim().toLowerCase().replace(/[^a-z-]/g, '')
     return KNOWN_CATEGORIES.includes(cat) ? cat : 'uncategorized'
   } catch (err) {
