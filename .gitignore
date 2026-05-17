@@ -4,6 +4,7 @@ data/
 logs/
 generated/
 coverage/
+temp/
 .env
 *.db
 *.db-shm

@@ -5,6 +5,9 @@ import { childLogger } from '../shared/logger.js'
 import { orchestratorEvents } from '../shared/events.js'
 import { collectLearningFeeds } from './rss-learning.js'
 import { collectFastNews } from './fast-news-reader.js'
+import { collectAiPapers } from './arxiv-papers.js'
+import { cfg } from '../shared/config.js'
+import { publishIaKnowPapers } from '../publishers/ia-know.js'
 
 const log = childLogger('learning-cycle')
 
@@ -21,11 +24,12 @@ export async function runLearningCycle(): Promise<LearningCycleResult> {
   orchestratorEvents.emit('agent', { name: agentName, status: 'running' })
 
   try {
-    const [{ items: rssItems, blocked }, fastNewsItems] = await Promise.all([
+    const [{ items: rssItems, blocked }, fastNewsItems, paperItems] = await Promise.all([
       collectLearningFeeds(),
       collectFastNews(24),
+      collectAiPapers(),
     ])
-    const items = [...rssItems, ...fastNewsItems]
+    const items = [...rssItems, ...fastNewsItems, ...paperItems]
     const processed = await Promise.all(items.map(async (item) => ({
       ...item,
       summary: item.summary ?? await summarize(item.title, item.content),
@@ -38,6 +42,11 @@ export async function runLearningCycle(): Promise<LearningCycleResult> {
     finishAgentRun(runId, stored)
     orchestratorEvents.emit('agent', { name: agentName, status: 'completed', count: stored, blocked: blocked.length })
     log.info({ collected: items.length, stored, blocked: blocked.length }, 'Learning cycle complete')
+
+    if (cfg.iaKnowAutoPublish) {
+      const publishResult = await publishIaKnowPapers()
+      log.info(publishResult, 'IA Know paper dataset publish complete')
+    }
 
     return {
       collected: items.length,

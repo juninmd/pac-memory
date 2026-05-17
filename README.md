@@ -18,6 +18,8 @@ pnpm dev:status
 pnpm tsx src/cli/index.ts search "github workflow"
 pnpm tsx src/cli/index.ts agents
 pnpm dev:learn
+pnpm tsx src/cli/index.ts papers
+pnpm tsx src/cli/index.ts publish-ia-know
 pnpm tsx src/cli/index.ts insights
 pnpm tsx src/cli/index.ts export pac-memory-digest.md
 ```
@@ -29,6 +31,8 @@ pnpm tsx src/cli/index.ts export pac-memory-digest.md
 - Live WebSocket event feed.
 - Ollama-assisted summarization, categorization, Q&A and self-evolution.
 - Autonomous allowlisted RSS learning cycle with SSRF protection.
+- AI/LLM paper aggregation from arXiv into the local knowledge base.
+- IA Know dataset publishing with generated Markdown/JSON plus automatic git commit/push.
 - Deterministic intelligence digest for value, freshness, source coverage and operational risks.
 - Related knowledge discovery.
 - Markdown/JSON digest export.
@@ -52,6 +56,13 @@ CONTROL_API_TOKEN=
 PORT=3000
 HOST=127.0.0.1
 DB_PATH=data/pac-memory.db
+PAPER_AGGREGATOR_ENABLED=true
+PAPER_AGGREGATOR_MAX_ITEMS=50
+PAPER_AGGREGATOR_QUERY=cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:stat.ML
+IA_KNOW_REPO_URL=https://github.com/juninmd/ia-know.git
+IA_KNOW_REPO_PATH=temp/ia-know
+IA_KNOW_AUTO_PUBLISH=false
+IA_KNOW_AUTO_PUSH=true
 ```
 
 Ollama is used through LiteLLM, including the ADK coordinator. Start Ollama, pull the configured model, then expose it through the LiteLLM OpenAI-compatible proxy before running LLM-backed features:
@@ -62,6 +73,10 @@ OLLAMA_API_BASE=http://127.0.0.1:11434 litellm --model ollama/llama3.1:8b --port
 ```
 
 Autonomous learning uses built-in curated RSS sources by default. Set `LEARNING_RSS_SOURCES` and `LEARNING_ALLOWED_DOMAINS` for custom feeds before exposing it in production.
+
+Paper aggregation uses the arXiv Atom API by default and stores relevant AI/LLM papers as `paper-aggregator` knowledge. Run `pnpm tsx src/cli/index.ts papers` to collect papers, then `pnpm tsx src/cli/index.ts publish-ia-know` to generate `docs/papers/ia-llms.md` and `docs/papers/ia-llms.json` in `IA_KNOW_REPO_PATH`, commit them, and push when `IA_KNOW_AUTO_PUSH=true`. Set `IA_KNOW_AUTO_PUBLISH=true` to publish automatically after `learn`.
+
+The `Publish IA Know Papers` GitHub Actions workflow runs every 6 hours and can be triggered manually. Configure repository secret `IA_KNOW_PUSH_TOKEN` with write access to `juninmd/ia-know` so the workflow can push generated commits.
 
 Set `CONTROL_API_TOKEN` in production to protect control routes such as collect, learn, evolve and source mutations. The cockpit can send this token from the local token field in Mission Control.
 

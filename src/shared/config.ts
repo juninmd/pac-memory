@@ -102,6 +102,16 @@ export const cfg = {
   promptsDir: optional('PROMPTS_DIR', 'prompts'),
   fastNewsApiUrl: optional('FAST_NEWS_API_URL', ''),
   dailyDigestHour: Number(optional('DAILY_DIGEST_HOUR', '7')),
+  paperAggregatorEnabled: optional('PAPER_AGGREGATOR_ENABLED', 'true') === 'true',
+  paperAggregatorMaxItems: Number(optional('PAPER_AGGREGATOR_MAX_ITEMS', '50')),
+  paperAggregatorQuery: optional(
+    'PAPER_AGGREGATOR_QUERY',
+    'cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:stat.ML'
+  ),
+  iaKnowRepoUrl: optional('IA_KNOW_REPO_URL', 'https://github.com/juninmd/ia-know.git'),
+  iaKnowRepoPath: optional('IA_KNOW_REPO_PATH', 'temp/ia-know'),
+  iaKnowAutoPublish: optional('IA_KNOW_AUTO_PUBLISH', 'false') === 'true',
+  iaKnowAutoPush: optional('IA_KNOW_AUTO_PUSH', 'true') === 'true',
 
   llmFallbackChain: parseFallbackChain(),
 }

@@ -9,6 +9,8 @@ import { generateCollector } from '../evolution/code-generator.js'
 import { deployCollector } from '../evolution/deployer.js'
 import { buildKnowledgeDigest, exportDigestMarkdown } from '../knowledge/insights.js'
 import { runLearningCycle } from '../learning/cycle.js'
+import { collectAiPapers } from '../learning/arxiv-papers.js'
+import { publishIaKnowPapers } from '../publishers/ia-know.js'
 import { childLogger } from '../shared/logger.js'
 import { writeFileSync } from 'fs'
 
@@ -166,6 +168,35 @@ yargs(hideBin(process.argv))
     result.blockedSources.forEach((blocked) => {
       console.log(`  - ${blocked.source}: ${blocked.reason}`)
     })
+    console.log()
+    closeDb()
+  })
+
+  .command('papers', 'Collect latest AI/LLM papers into local knowledge', {}, async () => {
+    getDb()
+    const { bulkUpsert } = await import('../knowledge/repository.js')
+    const { summarize } = await import('../knowledge/summarizer.js')
+    const papers = await collectAiPapers()
+    const processed = await Promise.all(papers.map(async (paper) => ({
+      ...paper,
+      summary: paper.summary ?? await summarize(paper.title, paper.content),
+    })))
+    const stored = bulkUpsert(processed)
+    console.log(`\nAI/LLM papers collected: ${papers.length}`)
+    console.log(`Stored: ${stored}`)
+    console.log()
+    closeDb()
+  })
+
+  .command('publish-ia-know', 'Generate IA Know paper dataset, commit it and optionally push', {}, async () => {
+    getDb()
+    const result = await publishIaKnowPapers()
+    console.log('\nIA Know publish complete')
+    console.log(`Repo: ${result.repoPath}`)
+    console.log(`Papers: ${result.totalPapers}`)
+    console.log(`Changed: ${result.changed}`)
+    console.log(`Committed: ${result.committed}${result.commit ? ` (${result.commit})` : ''}`)
+    console.log(`Pushed: ${result.pushed}`)
     console.log()
     closeDb()
   })

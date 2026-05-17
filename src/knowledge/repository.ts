@@ -68,6 +68,20 @@ export function listKnowledge(category?: string, limit = 50, offset = 0): Knowle
     .map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
 }
 
+export function listKnowledgeBySource(source: string, limit = 200): Knowledge[] {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT * FROM knowledge
+    WHERE source=?
+    ORDER BY
+      COALESCE(json_extract(metadata, '$.published'), json_extract(metadata, '$.updated'), updated_at) DESC,
+      title ASC
+    LIMIT ?
+  `).all(source, limit) as (Omit<Knowledge, 'metadata'> & { metadata: string })[]
+
+  return rows.map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
+}
+
 export function countKnowledge(): number {
   const db = getDb()
   const row = db.prepare('SELECT COUNT(*) as count FROM knowledge').get() as { count: number }
