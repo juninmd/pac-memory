@@ -68,7 +68,7 @@
     "@types/yargs": "^17.0.35",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.59.3",
-    "eslint": "^10.2.0",
+    "eslint": "^10.4.1",
     "globals": "^17.6.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.3",
