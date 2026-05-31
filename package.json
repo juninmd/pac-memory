@@ -48,7 +48,7 @@
     "@google/adk": "^0.6.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@octokit/rest": "^22.0.1",
-    "ai": "^6.0.191",
+    "ai": "^6.0.193",
     "better-sqlite3": "^12.10.0",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
