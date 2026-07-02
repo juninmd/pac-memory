@@ -1,86 +1,98 @@
 # PAC-MEMORY
 
-Autonomous local knowledge system with collectors, full-text memory, Ollama-assisted Q&A and a live operational cockpit.
+[![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6.svg)]()
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js-339933.svg)]()
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)]()
 
-## Run
+> **Autonomous Knowledge & Self-Evolution System**. Sistema de conhecimento local autônomo com coletores, memória full-text, Q&A assistida por Ollama e cockpit operacional ao vivo.
+
+## ✨ Funcionalidades
+
+- **Base de Conhecimento Local**: SQLite com busca FTS5
+- **Coletores**: Sistema, rede, ambiente, GitHub e web monitoring
+- **Live WebSocket**: Feed de eventos ao vivo no cockpit
+- **Ollama Integration**: Sumarização, categorização, Q&A e auto-evolução
+- **RSS Learning**: Ciclo de aprendizado autônomo com proteção SSRF
+- **Paper Aggregator**: Coleta de artigos AI/LLM do arXiv
+- **IA Know Publishing**: Geração de Markdown/JSON com git commit/push automático
+- **Relatórios**: Digest de inteligência (valor, frescor, cobertura, riscos)
+- **CLI Completa**: Comandos para coleta, aprendizado, evolução, exportação
+
+## 🛠️ Tech Stack
+
+| Categoria | Tecnologias |
+|-----------|------------|
+| **Runtime** | Node.js, TypeScript |
+| **Banco** | SQLite (FTS5) |
+| **LLM** | Ollama, LiteLLM |
+| **CLI** | Commander-based |
+| **Dashboard** | Web (HTTP + WebSocket) |
+| **Build** | TypeScript (tsc) |
+| **Linting** | ESLint |
+| **Testing** | Vitest |
+
+## 📦 Instalação
 
 ```bash
 pnpm install
-pnpm dev
 ```
 
-Dashboard: `http://localhost:3000`
+## ⚙️ Ambiente
 
-## CLI
-
-```bash
-pnpm dev:status
-pnpm tsx src/cli/index.ts search "github workflow"
-pnpm tsx src/cli/index.ts agents
-pnpm dev:learn
-pnpm tsx src/cli/index.ts papers
-pnpm tsx src/cli/index.ts publish-ia-know
-pnpm tsx src/cli/index.ts insights
-pnpm tsx src/cli/index.ts export pac-memory-digest.md
-```
-
-## Features
-
-- Local SQLite knowledge base with FTS5 search.
-- Collectors for system, network, environment, GitHub and web monitoring.
-- Live WebSocket event feed.
-- Ollama-assisted summarization, categorization, Q&A and self-evolution.
-- Autonomous allowlisted RSS learning cycle with SSRF protection.
-- AI/LLM paper aggregation from arXiv into the local knowledge base.
-- IA Know dataset publishing with generated Markdown/JSON plus automatic git commit/push.
-- Deterministic intelligence digest for value, freshness, source coverage and operational risks.
-- Related knowledge discovery.
-- Markdown/JSON digest export.
-- Manual cockpit controls for collection and evolution.
-
-## Environment
-
-Copy `.env.example` to `.env` and set what you need:
+Copie `.env.example` para `.env`:
 
 ```env
 GITHUB_TOKEN=
-GITHUB_USERNAME=
-LITELLM_BASE_URL=http://127.0.0.1:4000
-LITELLM_MODEL=ollama/llama3.1:8b
-LITELLM_API_KEY=
-LITELLM_TIMEOUT_MS=60000
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.1:8b
-OLLAMA_TIMEOUT_MS=60000
-CONTROL_API_TOKEN=
+LITELLM_BASE_URL=http://127.0.0.1:4000
 PORT=3000
-HOST=127.0.0.1
 DB_PATH=data/pac-memory.db
-PAPER_AGGREGATOR_ENABLED=true
-PAPER_AGGREGATOR_MAX_ITEMS=50
-PAPER_AGGREGATOR_QUERY=cat:cs.AI OR cat:cs.CL OR cat:cs.LG OR cat:stat.ML
-IA_KNOW_REPO_URL=https://github.com/juninmd/ia-know.git
-IA_KNOW_REPO_PATH=temp/ia-know
-IA_KNOW_AUTO_PUBLISH=false
-IA_KNOW_AUTO_PUSH=true
 ```
 
-Ollama is used through LiteLLM, including the ADK coordinator. Start Ollama, pull the configured model, then expose it through the LiteLLM OpenAI-compatible proxy before running LLM-backed features:
+Inicie o Ollama + LiteLLM:
 
 ```bash
 ollama pull llama3.1:8b
 OLLAMA_API_BASE=http://127.0.0.1:11434 litellm --model ollama/llama3.1:8b --port 4000
 ```
 
-Autonomous learning uses built-in curated RSS sources by default. Set `LEARNING_RSS_SOURCES` and `LEARNING_ALLOWED_DOMAINS` for custom feeds before exposing it in production.
+## 🚀 Uso
 
-Paper aggregation uses the arXiv Atom API by default and stores relevant AI/LLM papers as `paper-aggregator` knowledge. Run `pnpm tsx src/cli/index.ts papers` to collect papers, then `pnpm tsx src/cli/index.ts publish-ia-know` to generate `docs/papers/ia-llms.md` and `docs/papers/ia-llms.json` in `IA_KNOW_REPO_PATH`, commit them, and push when `IA_KNOW_AUTO_PUSH=true`. Set `IA_KNOW_AUTO_PUBLISH=true` to publish automatically after `learn`.
+```bash
+pnpm dev              # Iniciar cockpit
+pnpm dev:status       # Status do sistema
+pnpm dev:collect      # Coletar dados
+pnpm dev:learn        # Ciclo de aprendizado
+pnpm dev:evolve       # Auto-evolução
+pnpm dev:insights     # Gerar insights
+pnpm dev:export       # Exportar digest
+pnpm dev:mcp          # MCP server
+```
 
-The `Publish IA Know Papers` GitHub Actions workflow runs every 6 hours and can be triggered manually. Configure repository secret `IA_KNOW_PUSH_TOKEN` with write access to `juninmd/ia-know` so the workflow can push generated commits.
+Dashboard: `http://localhost:3000`
 
-Set `CONTROL_API_TOKEN` in production to protect control routes such as collect, learn, evolve and source mutations. The cockpit can send this token from the local token field in Mission Control.
+## 🏗️ Arquitetura
 
-## Architecture
+```
+pac-memory/
+├── src/
+│   ├── cli/          # CLI commands
+│   ├── agents/       # Agent system
+│   ├── knowledge/    # Knowledge base (SQLite)
+│   ├── llm/          # LLM integration (Ollama/LiteLLM)
+│   ├── learning/     # RSS learning engine
+│   ├── evolution/    # Self-evolution
+│   ├── gemini/       # Gemini integration
+│   ├── mcp/          # MCP protocol
+│   ├── publishers/   # IA Know publishing
+│   ├── web/          # Web dashboard
+│   └── shared/       # Shared utilities
+├── data/             # SQLite database
+├── docs/             # Architecture docs
+└── scripts/          # Build scripts
+```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-See [docs/plans/pac-memory-autonomous-brain.md](docs/plans/pac-memory-autonomous-brain.md) for the autonomous brain rollout plan.
+## 📄 Licença
+
+ISC
