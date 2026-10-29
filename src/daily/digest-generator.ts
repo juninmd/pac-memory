@@ -18,9 +18,12 @@ export async function generateDailyDigest(): Promise<DailyDigestResult> {
   const date = new Date().toISOString().slice(0, 10)
   log.info({ date }, 'Generating daily digest')
 
-  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  const cutoff = Date.now() - 24 * 3600 * 1000
+  // SQLite stores 'YYYY-MM-DD HH:MM:SS' (UTC); comparing it to an ISO string as text is wrong
+  // because ' ' sorts before 'T', so same-day items were dropped. Compare parsed timestamps.
+  const isRecent = (ts: string): boolean => Date.parse(ts.includes('T') ? ts : `${ts.replace(' ', 'T')}Z`) >= cutoff
   const allItems = listKnowledge(undefined, 5000)
-  const newItems = allItems.filter(item => item.created_at >= cutoff || item.updated_at >= cutoff)
+  const newItems = allItems.filter(item => isRecent(item.created_at) || isRecent(item.updated_at))
 
   const recentRuns = listAgentRuns(20)
   const agentSummary = recentRuns
