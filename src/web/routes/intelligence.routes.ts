@@ -3,6 +3,7 @@ import { buildKnowledgeDigest, exportDigestMarkdown, findRelatedKnowledge } from
 import { getMetricsHistory, listKnowledge } from '../../knowledge/repository.js'
 import { semanticSearch, embedRecentKnowledge } from '../../knowledge/embedder.js'
 import { generateDailyDigest, getLatestDigest } from '../../daily/digest-generator.js'
+import { boundedInt } from '../query-params.js'
 
 export async function intelligenceRoutes(app: FastifyInstance) {
   app.get('/intelligence/digest', async (_req, reply) => {
@@ -23,22 +24,22 @@ export async function intelligenceRoutes(app: FastifyInstance) {
 
   app.get('/knowledge/:id/related', async (req, reply) => {
     const { id } = req.params as { id: string }
-    const { limit = '8' } = req.query as Record<string, string>
+    const { limit } = req.query as Record<string, string>
     const numericId = Number(id)
     if (!Number.isInteger(numericId) || numericId <= 0) {
       return reply.status(400).send({ error: 'id must be a positive integer' })
     }
 
-    const items = await findRelatedKnowledge(numericId, Number(limit))
+    const items = await findRelatedKnowledge(numericId, boundedInt(limit, 8, 1, 50))
     return reply.send({ items })
   })
 
   // Semantic search via embeddings
   app.get('/intelligence/semantic', async (req, reply) => {
-    const { q, limit = '10' } = req.query as Record<string, string>
+    const { q, limit } = req.query as Record<string, string>
     if (!q?.trim()) return reply.status(400).send({ error: 'q param required' })
     try {
-      const results = await semanticSearch(q.trim(), Math.min(Number(limit), 50))
+      const results = await semanticSearch(q.trim(), boundedInt(limit, 10, 1, 50))
       return reply.send({ items: results, query: q.trim() })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -82,9 +83,9 @@ export async function intelligenceRoutes(app: FastifyInstance) {
 
   app.get('/export/knowledge', async (req, reply) => {
     const { format = 'csv' } = req.query as Record<string, string>
-    const { limit = '5000', offset = '0' } = req.query as Record<string, string>
-    const lim = Math.min(Math.max(1, Number(limit)), 5000)
-    const off = Math.max(0, Number(offset))
+    const { limit, offset } = req.query as Record<string, string>
+    const lim = boundedInt(limit, 5000, 1, 5000)
+    const off = boundedInt(offset, 0, 0, Number.MAX_SAFE_INTEGER)
 
     const items = listKnowledge(undefined, lim, off)
 

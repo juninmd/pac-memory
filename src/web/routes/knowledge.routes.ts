@@ -13,6 +13,7 @@ import {
 import { semanticSearch } from '../../knowledge/embedder.js'
 import { generateTextWithRetry } from '../../llm/client.js'
 import { childLogger } from '../../shared/logger.js'
+import { boundedInt } from '../query-params.js'
 import type { Knowledge } from '../../shared/types.js'
 
 const log = childLogger('knowledge-routes')
@@ -23,11 +24,12 @@ function sanitizeQuery(raw: string): string {
 
 export async function knowledgeRoutes(app: FastifyInstance) {
   app.get('/knowledge', async (req, reply) => {
-    const { category, limit = '50', offset = '0', sort = 'updated' } = req.query as Record<string, string>
-    const lim = Math.min(Math.max(1, Number(limit)), 200)
-    const off = Math.max(0, Number(offset))
+    const { category, limit, offset, sort = 'updated' } = req.query as Record<string, string>
+    const lim = boundedInt(limit, 50, 1, 200)
+    const off = boundedInt(offset, 0, 0, Number.MAX_SAFE_INTEGER)
     const items = listKnowledge(category || undefined, lim, off)
-    const total = countKnowledge()
+    // total must follow the filter, otherwise pagination over a category never ends where the list does
+    const total = countKnowledge(category || undefined)
     return reply.send({ items, total, limit: lim, offset: off, sort })
   })
 
@@ -121,8 +123,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     }
     const safeQuery = sanitizeQuery(query)
     if (!safeQuery) return reply.send({ items: [], total: 0, query: '' })
-    const lim = Math.min(Math.max(1, Number(limit)), 100)
-    const off = Math.max(0, Number(offset))
+    const lim = boundedInt(limit, 20, 1, 100)
+    const off = boundedInt(offset, 0, 0, Number.MAX_SAFE_INTEGER)
 
     if (mode === 'hybrid') {
       const ftsResult = searchKnowledgePaginated(safeQuery, lim, off)
@@ -165,7 +167,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     }
     const safeQuery = sanitizeQuery(query)
     if (!safeQuery) return reply.send({ items: [], query: '' })
-    const lim = Math.min(Math.max(1, Number(limit)), 50)
+    const lim = boundedInt(limit, 10, 1, 50)
     try {
       const items = await semanticSearch(safeQuery, lim)
       return reply.send({ items, query: safeQuery })
@@ -187,7 +189,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     const safeQuestion = sanitizeQuery(question)
     if (!safeQuestion) return reply.send({ answer: 'Nenhuma pergunta válida enviada.', sources: [] })
 
-    const results = searchKnowledge(safeQuestion, Math.min(Number(limit), 10))
+    const results = searchKnowledge(safeQuestion, boundedInt(limit, 5, 1, 10))
     if (!results.length) {
       return reply.send({ answer: 'Nenhum conhecimento relevante encontrado para essa pergunta.', sources: [], llmUsed: false })
     }
