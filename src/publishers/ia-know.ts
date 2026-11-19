@@ -153,7 +153,7 @@ function stringArrayMetadata(value: unknown): string[] {
 }
 
 function ensureIaKnowRepo(repoPath: string): void {
-  let isRepo = false
+  let isRepo: boolean
   try {
     git(repoPath, ['rev-parse', '--is-inside-work-tree'])
     isRepo = true
