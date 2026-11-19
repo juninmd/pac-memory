@@ -82,9 +82,11 @@ export function listKnowledgeBySource(source: string, limit = 200): Knowledge[] 
   return rows.map(r => ({ ...r, metadata: safeJsonParse(r.metadata) }))
 }
 
-export function countKnowledge(): number {
+export function countKnowledge(category?: string): number {
   const db = getDb()
-  const row = db.prepare('SELECT COUNT(*) as count FROM knowledge').get() as { count: number }
+  const row = (category
+    ? db.prepare('SELECT COUNT(*) as count FROM knowledge WHERE category=?').get(category)
+    : db.prepare('SELECT COUNT(*) as count FROM knowledge').get()) as { count: number }
   return row.count
 }
 
