@@ -248,6 +248,16 @@ export function searchKnowledgePaginated(query: string, limit = 20, offset = 0):
   }
 }
 
+/** Subset of `ids` that the FTS query matches; bounded by ids.length. */
+export function ftsMatchingIds(query: string, ids: number[]): Set<number> {
+  if (!ids.length) return new Set()
+  const rows = getDb().prepare(`
+    SELECT rowid AS id FROM knowledge_fts
+    WHERE knowledge_fts MATCH ? AND rowid IN (${ids.map(() => '?').join(',')})
+  `).all(query, ...ids) as { id: number }[]
+  return new Set(rows.map((r) => r.id))
+}
+
 export function updateKnowledge(id: number, patch: Partial<Omit<KnowledgeInput, 'summary'>> & { summary?: string }) {
   const current = getKnowledgeById(id)
   if (!current) throw new Error(`Knowledge entry not found: ${id}`)
