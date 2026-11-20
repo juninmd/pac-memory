@@ -9,6 +9,7 @@ import {
   countKnowledgeByCategory,
   listCategories,
   updateKnowledge,
+  ftsMatchingIds,
 } from '../../knowledge/repository.js'
 import { semanticSearch } from '../../knowledge/embedder.js'
 import { generateTextWithRetry } from '../../llm/client.js'
@@ -132,10 +133,12 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     const off = boundedInt(offset, 0, 0, Number.MAX_SAFE_INTEGER)
 
     if (mode === 'hybrid') {
-      const ftsResult = searchKnowledgePaginated(safeQuery, lim, off)
+      // rank the first off+lim of both sources and slice, so later pages neither repeat semantic hits nor skip FTS ones
+      const window = off + lim
+      const ftsResult = searchKnowledgePaginated(safeQuery, window, 0)
       let semanticItems: (Knowledge & { similarity: number })[] = []
       try {
-        semanticItems = await semanticSearch(safeQuery, lim)
+        semanticItems = await semanticSearch(safeQuery, window)
       } catch {
         // embedding unavailable — proceed with FTS only
       }
@@ -155,7 +158,10 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       }
       merged.sort((a, b) => b.score - a.score)
 
-      return reply.send({ items: merged.slice(0, lim), total: merged.length, query: safeQuery, mode: 'hybrid' })
+      // semantic hits that FTS never matches add to the FTS total; the rest are already counted there
+      const ftsHits = ftsMatchingIds(safeQuery, semanticItems.map((item) => item.id))
+      const total = ftsResult.total + semanticItems.filter((item) => !ftsHits.has(item.id)).length
+      return reply.send({ items: merged.slice(off, window), total, query: safeQuery, mode: 'hybrid' })
     }
 
     const result = searchKnowledgePaginated(safeQuery, lim, off)
