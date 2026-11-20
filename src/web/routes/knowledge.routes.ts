@@ -13,10 +13,12 @@ import {
 import { semanticSearch } from '../../knowledge/embedder.js'
 import { generateTextWithRetry } from '../../llm/client.js'
 import { childLogger } from '../../shared/logger.js'
-import { boundedInt } from '../query-params.js'
+import { bodyObject, boundedInt } from '../query-params.js'
 import type { Knowledge } from '../../shared/types.js'
 
 const log = childLogger('knowledge-routes')
+
+const BODY_ERROR = { error: 'corpo deve ser um objeto JSON' }
 
 function sanitizeQuery(raw: string): string {
   return raw.replace(/['"*:()^~]/g, ' ').trim()
@@ -63,7 +65,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     const existing = getKnowledgeById(numericId)
     if (!existing) return reply.status(404).send({ error: `Conhecimento #${id} não encontrado` })
 
-    const patch = req.body as Record<string, unknown>
+    const patch = bodyObject(req.body)
+    if (!patch) return reply.status(400).send(BODY_ERROR)
     const allowed = ['title', 'content', 'summary', 'category', 'importance_score', 'metadata']
     const filtered: Record<string, unknown> = {}
     for (const key of allowed) {
@@ -114,7 +117,9 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   })
 
   app.post('/search', async (req, reply) => {
-    const { query, limit = 20, offset = 0, mode } = req.body as { query: string; limit?: number; offset?: number; mode?: string }
+    const body = bodyObject(req.body)
+    if (!body) return reply.status(400).send(BODY_ERROR)
+    const { query, limit = 20, offset = 0, mode } = body as { query: unknown; limit?: unknown; offset?: unknown; mode?: unknown }
     if (!query || typeof query !== 'string') {
       return reply.status(400).send({ error: 'query é obrigatória' })
     }
@@ -158,7 +163,9 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   })
 
   app.post('/search/semantic', async (req, reply) => {
-    const { query, limit = 10 } = req.body as { query: string; limit?: number }
+    const body = bodyObject(req.body)
+    if (!body) return reply.status(400).send(BODY_ERROR)
+    const { query, limit = 10 } = body as { query: unknown; limit?: unknown }
     if (!query || typeof query !== 'string') {
       return reply.status(400).send({ error: 'query é obrigatória' })
     }
@@ -178,7 +185,9 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   })
 
   app.post('/qa', async (req, reply) => {
-    const { question, limit = 5 } = req.body as { question: string; limit?: number }
+    const body = bodyObject(req.body)
+    if (!body) return reply.status(400).send(BODY_ERROR)
+    const { question, limit = 5 } = body as { question: unknown; limit?: unknown }
     if (!question || typeof question !== 'string') {
       return reply.status(400).send({ error: 'question é obrigatória' })
     }
