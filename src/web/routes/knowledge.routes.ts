@@ -24,6 +24,22 @@ function sanitizeQuery(raw: string): string {
   return raw.replace(/['"*:()^~]/g, ' ').trim()
 }
 
+/** First validation error of a PATCH body, or null; the UI renders importance as a 0–100% bar. */
+function patchFieldError(f: Record<string, unknown>): string | null {
+  for (const key of ['title', 'category'] as const) {
+    if (f[key] !== undefined && (typeof f[key] !== 'string' || !(f[key] as string).trim())) return `${key} deve ser string não vazia`
+  }
+  for (const key of ['content', 'summary'] as const) {
+    if (f[key] !== undefined && typeof f[key] !== 'string') return `${key} deve ser string`
+  }
+  const score = f.importance_score
+  if (score !== undefined && (typeof score !== 'number' || !(score >= 0 && score <= 1))) {
+    return 'importance_score deve ser número entre 0 e 1'
+  }
+  if (f.metadata !== undefined && bodyObject(f.metadata) === null) return 'metadata deve ser um objeto JSON'
+  return null
+}
+
 export async function knowledgeRoutes(app: FastifyInstance) {
   app.get('/knowledge', async (req, reply) => {
     const { category, limit, offset, sort = 'updated' } = req.query as Record<string, string>
@@ -77,21 +93,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Nenhum campo válido fornecido para atualização' })
     }
 
-    if (filtered.title !== undefined && typeof filtered.title !== 'string') {
-      return reply.status(400).send({ error: 'title deve ser string' })
-    }
-    if (filtered.content !== undefined && typeof filtered.content !== 'string') {
-      return reply.status(400).send({ error: 'content deve ser string' })
-    }
-    if (filtered.category !== undefined && typeof filtered.category !== 'string') {
-      return reply.status(400).send({ error: 'category deve ser string' })
-    }
-    if (filtered.summary !== undefined && typeof filtered.summary !== 'string') {
-      return reply.status(400).send({ error: 'summary deve ser string' })
-    }
-    if (filtered.importance_score !== undefined && typeof filtered.importance_score !== 'number') {
-      return reply.status(400).send({ error: 'importance_score deve ser número' })
-    }
+    const fieldError = patchFieldError(filtered)
+    if (fieldError) return reply.status(400).send({ error: fieldError })
 
     try {
       updateKnowledge(numericId, filtered as Parameters<typeof updateKnowledge>[1])

@@ -86,3 +86,44 @@ describe('request bodies that are not JSON objects', () => {
     }
   })
 })
+
+describe('PATCH /knowledge/:id field validation', () => {
+  beforeEach(() => {
+    getDb(':memory:')
+    upsertKnowledge(entry(1, 'alpha'))
+  })
+  afterEach(() => closeDb())
+
+  async function patch(body: unknown) {
+    const app = Fastify()
+    await app.register(knowledgeRoutes)
+    const res = await app.inject({ method: 'PATCH', url: '/knowledge/1', payload: JSON.stringify(body), headers: { 'content-type': 'application/json' } })
+    await app.close()
+    return { status: res.statusCode, body: res.json() }
+  }
+
+  it.each([
+    [{ importance_score: 5 }],
+    [{ importance_score: -0.1 }],
+    [{ metadata: 'oops' }],
+    [{ metadata: [1, 2] }],
+    [{ title: '   ' }],
+    [{ category: '' }],
+  ])('rejects %j with 400 and keeps the entry intact', async (body) => {
+    const res = await patch(body)
+    expect(res.status).toBe(400)
+    const { body: after } = await patch({ summary: 'probe' })
+    expect(after.item.importance_score).toBe(0.5)
+    expect(after.item.metadata).toEqual({})
+    expect(after.item.title).toBe('Entry 1')
+    expect(after.item.category).toBe('alpha')
+  })
+
+  it('accepts the bounds of importance_score and an object metadata', async () => {
+    expect((await patch({ importance_score: 0 })).body.item.importance_score).toBe(0)
+    const res = await patch({ importance_score: 1, metadata: { tag: 'x' } })
+    expect(res.status).toBe(200)
+    expect(res.body.item.importance_score).toBe(1)
+    expect(res.body.item.metadata).toEqual({ tag: 'x' })
+  })
+})
