@@ -59,3 +59,30 @@ describe('GET /knowledge', () => {
     expect(negative.body.items).toHaveLength(1)
   })
 })
+
+describe('request bodies that are not JSON objects', () => {
+  beforeEach(() => {
+    getDb(':memory:')
+    upsertKnowledge(entry(1, 'alpha'))
+  })
+  afterEach(() => closeDb())
+
+  async function send(method: 'POST' | 'PATCH', url: string, payload?: string) {
+    const app = Fastify()
+    await app.register(knowledgeRoutes)
+    const res = await app.inject({ method, url, payload, headers: payload === undefined ? {} : { 'content-type': 'application/json' } })
+    await app.close()
+    return res.statusCode
+  }
+
+  it.each([
+    ['POST', '/search'],
+    ['POST', '/search/semantic'],
+    ['POST', '/qa'],
+    ['PATCH', '/knowledge/1'],
+  ] as const)('%s %s answers 400, not 500, for a missing, null, array or scalar body', async (method, url) => {
+    for (const payload of [undefined, 'null', '[1]', '"x"', '42']) {
+      expect(await send(method, url, payload), `${method} ${url} ${payload}`).toBe(400)
+    }
+  })
+})
