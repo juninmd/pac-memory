@@ -208,7 +208,14 @@ function renderKnowledgeItems(items, query) {
       <div class="ki-content">${previewHtml}</div>
       <div class="ki-source">↳ ${escHtml(item.source)} · ${item.updated_at?.slice(0, 16) ?? ''}</div>
     `
+    div.tabIndex = 0
+    div.setAttribute('role', 'button')
     div.addEventListener('click', () => showKnowledgeDetail(item))
+    div.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return
+      ev.preventDefault()
+      showKnowledgeDetail(item)
+    })
     list.appendChild(div)
   }
 }
@@ -246,7 +253,7 @@ async function showKnowledgeDetail(item) {
     }
   }
 
-  modal.classList.remove('hidden')
+  openDialog(modal, 'modal-close')
   loadRelatedKnowledge(item.id)
 }
 
@@ -255,7 +262,7 @@ async function confirmDeleteKnowledge(id, title) {
   const data = await fetchJson(`/api/knowledge/${id}`, { method: 'DELETE', headers: controlHeaders() })
   if (data?.deleted) {
     showToast(`Conhecimento "${title}" excluído.`, 'success')
-    document.getElementById('modal-overlay').classList.add('hidden')
+    closeModal()
     const item = document.querySelector(`.knowledge-item[data-id="${id}"]`)
     if (item) item.remove()
     refreshStats()
@@ -274,12 +281,12 @@ function openEditModal(item) {
   document.getElementById('edit-summary').value = item.summary || ''
   document.getElementById('edit-content').value = item.content
   document.getElementById('edit-importance').value = item.importance_score.toFixed(2)
-  document.getElementById('edit-modal-overlay').classList.remove('hidden')
+  openDialog(document.getElementById('edit-modal-overlay'), 'edit-title')
 }
 
 function closeEditModal() {
   editItem = null
-  document.getElementById('edit-modal-overlay').classList.add('hidden')
+  closeDialog(document.getElementById('edit-modal-overlay'))
 }
 
 document.getElementById('edit-cancel').addEventListener('click', closeEditModal)
@@ -318,7 +325,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
   if (data?.item) {
     showToast('Entrada atualizada com sucesso.', 'success')
     closeEditModal()
-    document.getElementById('modal-overlay').classList.add('hidden')
+    closeModal()
     if (document.getElementById('cat-filter').value) {
       loadKnowledge(true)
     } else {
@@ -342,7 +349,24 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
 })
 
 function closeModal() {
-  document.getElementById('modal-overlay').classList.add('hidden')
+  closeDialog(document.getElementById('modal-overlay'))
+}
+
+// Remembers who opened each dialog so focus returns there on close (keyboard/screen reader users).
+const dialogOpeners = new Map()
+
+function openDialog(overlay, focusId) {
+  if (overlay.classList.contains('hidden')) dialogOpeners.set(overlay, document.activeElement)
+  overlay.classList.remove('hidden')
+  document.getElementById(focusId)?.focus()
+}
+
+function closeDialog(overlay) {
+  if (overlay.classList.contains('hidden')) return
+  overlay.classList.add('hidden')
+  const opener = dialogOpeners.get(overlay)
+  dialogOpeners.delete(overlay)
+  if (opener?.isConnected) opener.focus()
 }
 
 document.getElementById('btn-load-more').addEventListener('click', () => {
@@ -801,9 +825,10 @@ function updateUptime() {
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape') {
-    closeModal()
-    closeEditModal()
-    closeShortcutsModal()
+    // close only the top-most dialog: Esc while editing must not also drop the detail view
+    if (!document.getElementById('edit-modal-overlay').classList.contains('hidden')) closeEditModal()
+    else if (!document.getElementById('shortcuts-modal').classList.contains('hidden')) closeShortcutsModal()
+    else closeModal()
   }
 
   if ((ev.ctrlKey || ev.metaKey) && ev.key === 'k') {
@@ -841,10 +866,10 @@ document.addEventListener('keydown', (ev) => {
 })
 
 function openShortcutsModal() {
-  document.getElementById('shortcuts-modal').classList.remove('hidden')
+  openDialog(document.getElementById('shortcuts-modal'), 'shortcuts-close')
 }
 function closeShortcutsModal() {
-  document.getElementById('shortcuts-modal').classList.add('hidden')
+  closeDialog(document.getElementById('shortcuts-modal'))
 }
 document.getElementById('shortcuts-close').addEventListener('click', closeShortcutsModal)
 document.getElementById('shortcuts-modal').addEventListener('click', (e) => {
