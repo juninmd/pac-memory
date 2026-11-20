@@ -1,6 +1,6 @@
 FROM node:26-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@10.32.1
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -13,7 +13,7 @@ RUN pnpm run build
 
 FROM node:26-slim
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@10.32.1
 RUN apt-get update && apt-get install -y sqlite3 git python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
