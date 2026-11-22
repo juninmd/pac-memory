@@ -50,10 +50,10 @@ export function buildKnowledgeDigest(): KnowledgeDigest {
   const now = Date.now()
   const sortedByImportance = [...all].sort((a, b) => b.importance_score - a.importance_score)
   const sortedByUpdated = [...all].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
-  const staleKnowledge = all
+  const stale = all
     .filter((item) => now - Date.parse(item.updated_at) > STALE_DAYS * DAY_MS)
     .sort((a, b) => Date.parse(a.updated_at) - Date.parse(b.updated_at))
-    .slice(0, 20)
+  const staleKnowledge = stale.slice(0, 20)
   const averageImportance = total
     ? all.reduce((sum, item) => sum + item.importance_score, 0) / total
     : 0
@@ -65,8 +65,8 @@ export function buildKnowledgeDigest(): KnowledgeDigest {
     freshness: {
       newest: sortedByUpdated[0]?.updated_at,
       oldest: sortedByUpdated.at(-1)?.updated_at,
-      staleCount: staleKnowledge.length,
-      staleRatio: total ? staleKnowledge.length / total : 0,
+      staleCount: stale.length,
+      staleRatio: total ? stale.length / total : 0,
     },
     categories,
     sources,

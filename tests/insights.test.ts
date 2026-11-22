@@ -69,6 +69,18 @@ describe('Knowledge Insights', () => {
     expect(related.every((item) => item.id !== 1)).toBe(true)
   })
 
+  it('counts every stale entry, not only the 20 listed', () => {
+    bulkUpsert(Array.from({ length: 100 }, (_, i) => ({ ...baseItem, title: `Entry ${i}` })))
+    getDb().exec("UPDATE knowledge SET updated_at = datetime('now', '-30 days') WHERE id % 5 <> 0")
+
+    const digest = buildKnowledgeDigest()
+
+    expect(digest.staleKnowledge).toHaveLength(20)
+    expect(digest.freshness.staleCount).toBe(80)
+    expect(digest.freshness.staleRatio).toBe(0.8)
+    expect(digest.insights.map((i) => i.id)).toContain('stale-knowledge')
+  })
+
   it('exports a markdown digest', () => {
     bulkUpsert([baseItem])
 
