@@ -1,80 +1,46 @@
-# AGENTS.md - PAC-MEMORY
+# AGENTS.md
 
-## Tech Stack Summary
+PAC-MEMORY: a local, autonomous knowledge base. It collects signals from the machine, the network, GitHub and the web, stores them in SQLite with FTS5, and shows them in a live cockpit. Runs on Node.js with TypeScript (ESM).
 
-- **Runtime**: Node.js (ESM), TypeScript
-- **Build**: tsc (TypeScript compiler)
-- **Testing**: Vitest
-- **Linting**: ESLint
-- **Database**: SQLite (better-sqlite3, FTS5 full-text search)
-- **LLM**: Ollama (local), LiteLLM proxy (OpenAI-compatible)
-- **Web**: HTTP server, WebSocket events
-- **CLI**: Commander.js
-- **Key Dependencies**: better-sqlite3, commander, ws, ollama, litellm (via OpenAI-compatible API)
+## Stack
+- Node.js (ESM, `"type": "module"`), TypeScript strict. Container image on `node:26-slim`
+- SQLite via `better-sqlite3`, FTS5 full-text search
+- LLM: Ollama (local default) or a LiteLLM proxy (OpenAI-compatible). Other providers are configurable in `.env.example`
+- Web: HTTP server with WebSocket events. CLI: Commander. MCP server in `src/mcp/`
+- Tests: Vitest. Lint: ESLint
 
-## Project Structure
+## Commands
+- Install: `pnpm install`
+- Dev (collect, learn, cockpit and web): `pnpm dev`. Single tasks: `pnpm dev:collect`, `pnpm dev:learn`, `pnpm dev:evolve`, `pnpm dev:web`, `pnpm dev:status`, `pnpm dev:insights`, `pnpm dev:export`, `pnpm dev:mcp`
+- Build: `pnpm build` (tsc, then copies the web assets). Run the build: `pnpm start`
+- Test: `pnpm test` (`vitest run`); watch mode: `pnpm test:watch`
+- Lint: `pnpm lint` (ESLint on `src/`). Typecheck: `pnpm typecheck`
 
-```
-pac-memory/
-├── src/
-│   ├── cli/           # CLI entry and commands (start, status, collect, learn, evolve, etc.)
-│   ├── agents/         # Autonomous agent system
-│   ├── knowledge/      # SQLite knowledge base with FTS5
-│   ├── llm/            # LLM abstraction (Ollama/LiteLLM)
-│   ├── learning/       # RSS autonomous learning with SSRF protection
-│   ├── evolution/      # Self-evolution engine
-│   ├── gemini/         # Google Gemini integration
-│   ├── mcp/            # Model Context Protocol server
-│   ├── publishers/     # IA Know dataset publishing
-│   ├── web/            # Dashboard server
-│   ├── daily/          # Daily routines
-│   ├── security/       # Security utilities
-│   └── shared/         # Shared types and utilities
-├── data/              # SQLite database storage
-├── docs/              # Architecture and plans
-├── scripts/           # Build and utility scripts
-├── tests/             # Test files
-├── prompts/           # LLM prompt templates
-└── k8s/               # Kubernetes manifests
-```
+## Structure
+- `src/cli/`: CLI entry point and commands
+- `src/agents/`: autonomous agents (env, GitHub, network, system, web monitor, orchestrator)
+- `src/knowledge/`: SQLite knowledge base, FTS5 search, categorizer, embedder, summarizer, insights
+- `src/llm/`: LLM client abstraction (Ollama, LiteLLM)
+- `src/learning/`: RSS and arXiv learning sources and cycle
+- `src/evolution/`: self-evolution (gap analysis, code generation, validation, deploy)
+- `src/mcp/`, `src/publishers/` (IA Know dataset), `src/web/` (dashboard, routes, auth), `src/daily/` (digest), `src/security/` (URL policy), `src/shared/` (config, events, logger, types)
+- `prompts/`: LLM prompt templates. `docs/`: architecture and plans. `k8s/`: manifests. `scripts/`: build helpers. `tests/`: Vitest suites
+- `data/`: SQLite file, created at runtime (`DB_PATH`, default `data/pac-memory.db`)
 
-## Coding Conventions
+## Conventions
+- Strict TypeScript, ES modules, relative imports within `src/`
+- Raw SQL through `better-sqlite3`; FTS5 for search
+- Async/await with try/catch; console-based logging, with `LOG_LEVEL`
+- Modular and CLI-driven. Real-time updates go through WebSocket events
+- LLM calls use the OpenAI-compatible interface (LiteLLM), with fallback to direct Ollama
+- Configuration is read from environment variables. `.env.example` is the full list; keep it in sync when you add one
 
-- **TypeScript**: Strict mode, ES modules (`"type": "module"`)
-- **Imports**: Relative paths within src/
-- **Error Handling**: Async/await with try-catch, console-based logging
-- **Architecture**: Modular, CLI-driven, event-based WebSocket updates
-- **Database**: Raw SQL via better-sqlite3, FTS5 for search
-- **LLM Calls**: OpenAI-compatible interface (LiteLLM), fallback to direct Ollama
-
-## Build & Test Commands
-
-```bash
-pnpm install          # Install dependencies
-pnpm build            # TypeScript compilation
-pnpm dev              # Run in dev mode (tsx)
-pnpm test             # Run Vitest tests
-pnpm test:watch       # Watch mode
-pnpm lint             # ESLint
-pnpm typecheck        # TypeScript check (no emit)
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GITHUB_TOKEN` | - | GitHub API token |
-| `GITHUB_USERNAME` | - | GitHub username |
-| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL |
-| `OLLAMA_MODEL` | `llama3.1:8b` | Ollama model name |
-| `LITELLM_BASE_URL` | `http://127.0.0.1:4000` | LiteLLM proxy URL |
-| `LITELLM_MODEL` | `ollama/llama3.1:8b` | LiteLLM model identifier |
-| `PORT` | `3000` | Dashboard server port |
-| `DB_PATH` | `data/pac-memory.db` | SQLite database path |
-| `CONTROL_API_TOKEN` | - | Auth token for control routes |
-| `IA_KNOW_REPO_URL` | - | IA Know git repo URL |
-| `IA_KNOW_AUTO_PUBLISH` | `false` | Auto-publish after learn |
-| `PAPER_AGGREGATOR_ENABLED` | `true` | Enable arXiv paper collection |
+## Gotchas
+- **Outbound fetches** for learning sources go through `src/security/url-policy.ts` (SSRF protection, domain allowlist via `LEARNING_ALLOWED_DOMAINS`). Any new fetch must use it
+- **Control routes** require `CONTROL_API_TOKEN`. If it is unset, `src/shared/config.ts` generates an ephemeral token and prints it to the log. Always set it explicitly before exposing the dashboard
+- **IA Know publishing:** `IA_KNOW_AUTO_PUBLISH` publishes after `learn`, and `IA_KNOW_AUTO_PUSH` pushes to `IA_KNOW_REPO_URL`. Check both before enabling them
+- **Deploy:** the Kubernetes manifest runs one replica of the app (`ghcr.io/juninmd/pac-memory:latest`) next to a LiteLLM deployment. SQLite is a single-writer store; keep one replica
+- **Secrets:** `GITHUB_TOKEN`, LLM keys and `CONTROL_API_TOKEN` come only from the environment. Never commit them
 
 <!-- base-actions-main-policy -->
 ## GitHub Actions — padrão obrigatório (@main)
