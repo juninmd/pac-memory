@@ -37,7 +37,7 @@ PAC-MEMORY: a local, autonomous knowledge base. It collects signals from the mac
 
 ## Gotchas
 - **Outbound fetches** for learning sources go through `src/security/url-policy.ts` (SSRF protection, domain allowlist via `LEARNING_ALLOWED_DOMAINS`). Any new fetch must use it
-- **Control routes** require `CONTROL_API_TOKEN`. If it is unset, `src/shared/config.ts` generates an ephemeral token and prints it to the log. Always set it explicitly before exposing the dashboard
+- **Control routes** require `CONTROL_API_TOKEN`. If it is unset, `src/shared/config.ts` generates a random per-process token and does not log it, so control routes are unreachable. Always set it explicitly before exposing the dashboard
 - **IA Know publishing:** `IA_KNOW_AUTO_PUBLISH` publishes after `learn`, and `IA_KNOW_AUTO_PUSH` pushes to `IA_KNOW_REPO_URL`. Check both before enabling them
 - **Deploy:** the Kubernetes manifest runs one replica of the app (`ghcr.io/juninmd/pac-memory:latest`) next to a LiteLLM deployment. SQLite is a single-writer store; keep one replica
 - **Secrets:** `GITHUB_TOKEN`, LLM keys and `CONTROL_API_TOKEN` come only from the environment. Never commit them

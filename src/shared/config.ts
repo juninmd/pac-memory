@@ -62,7 +62,8 @@ function resolveControlToken(): string {
   const fromEnv = optional('CONTROL_API_TOKEN', '')
   if (fromEnv) return fromEnv
   const ephemeral = randomBytes(16).toString('hex')
-  console.warn(`[pac-memory] CONTROL_API_TOKEN not set — using ephemeral token: ${ephemeral}`)
+  // Never log the token: logs are often shipped off the host.
+  console.warn('[pac-memory] CONTROL_API_TOKEN not set — control routes use a random per-process token; set CONTROL_API_TOKEN to use them')
   return ephemeral
 }
 

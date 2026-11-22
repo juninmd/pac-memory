@@ -127,7 +127,7 @@ Copie `.env.example` para `.env`. Sem `.env`, o sistema usa os padrões abaixo.
 | `GITHUB_USERNAME` | Usuário do GitHub (coletor GitHub) | opcional | — |
 | `PORT` | Porta do cockpit | padrão `3000` | `3000` |
 | `DB_PATH` | Caminho do banco SQLite | padrão `data/pac-memory.db` | `data/pac-memory.db` |
-| `CONTROL_API_TOKEN` | Token das rotas de controle do cockpit | opcional; sem ele, um token efêmero é impresso no log | — |
+| `CONTROL_API_TOKEN` | Token das rotas de controle do cockpit | opcional; sem ele, um token aleatório por processo é gerado (não é logado) e as rotas de controle ficam inacessíveis | — |
 | `IA_KNOW_REPO_URL` | Repositório git de destino do IA Know | opcional | — |
 | `IA_KNOW_AUTO_PUBLISH` | Publica automaticamente após o `learn` | padrão `false` | `false` |
 | `PAPER_AGGREGATOR_ENABLED` | Ativa a coleta de artigos do arXiv | padrão `true` | `true` |
@@ -187,7 +187,7 @@ pac-memory/
 ## 🔒 Segurança
 
 - **SSRF**: o aprendizado valida cada URL com `src/security/url-policy.ts` antes de buscar.
-- **Rotas de controle**: protegidas por `CONTROL_API_TOKEN`. Sem essa variável, o token é efêmero e aparece no log de inicialização.
+- **Rotas de controle**: protegidas por `CONTROL_API_TOKEN`. Sem essa variável, o token é aleatório, não aparece no log, e as rotas de controle ficam inacessíveis.
 - **Segredos**: `.env`, `data/` e bancos `*.db` estão no `.gitignore`.
 
 ## ⚠️ Limitações conhecidas
