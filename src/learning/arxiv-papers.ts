@@ -2,7 +2,7 @@ import Parser from 'rss-parser'
 import type { KnowledgeInput } from '../shared/types.js'
 import { childLogger } from '../shared/logger.js'
 import { cfg } from '../shared/config.js'
-import { assertSafeFetchUrl } from '../security/url-policy.js'
+import { assertSafeFetchUrl, fetchWithPolicy, type UrlPolicy } from '../security/url-policy.js'
 
 const log = childLogger('learning:arxiv-papers')
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query'
@@ -41,11 +41,9 @@ export async function collectAiPapers(): Promise<KnowledgeInput[]> {
   }
 
   const apiUrl = buildArxivQueryUrl(cfg.paperAggregatorQuery, cfg.paperAggregatorMaxItems)
-  const safeUrl = await assertSafeFetchUrl(apiUrl, {
-    allowedDomains: new Set(['export.arxiv.org']),
-    allowHttp: false,
-  })
-  const xml = await fetchText(safeUrl)
+  const policy = { allowedDomains: new Set(['export.arxiv.org']), allowHttp: false }
+  const safeUrl = await assertSafeFetchUrl(apiUrl, policy)
+  const xml = await fetchText(safeUrl, policy)
   const feed = await new Parser({ customFields: { item: ['id', 'updated'] } }).parseString(xml)
   const now = new Date().toISOString()
 
@@ -184,12 +182,12 @@ function cleanText(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
 }
 
-async function fetchText(url: URL): Promise<string> {
+async function fetchText(url: URL, policy: UrlPolicy): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), cfg.learningFetchTimeoutMs)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPolicy(url, policy, {
       signal: controller.signal,
       headers: {
         'user-agent': 'pac-memory-paper-aggregator/1.0 (https://github.com/juninmd/pac-memory)',

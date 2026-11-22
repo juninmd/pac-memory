@@ -81,6 +81,21 @@ export async function assertSafeFetchUrl(url: string, policy: UrlPolicy): Promis
   return parsed
 }
 
+const MAX_REDIRECTS = 3
+
+/** fetch that re-checks the policy on every redirect hop instead of letting fetch follow them blindly. */
+export async function fetchWithPolicy(url: URL, policy: UrlPolicy, init: RequestInit): Promise<Response> {
+  let current = url
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const response = await fetch(current, { ...init, redirect: 'manual' })
+    const location = response.headers.get('location')
+    if (response.status < 300 || response.status >= 400 || !location) return response
+    await response.body?.cancel()
+    current = await assertSafeFetchUrl(new URL(location, current).toString(), policy)
+  }
+  throw new Error(`Too many redirects: ${url.hostname}`)
+}
+
 function compareV4(left: number[], right: number[]): number {
   for (let index = 0; index < 4; index += 1) {
     const diff = left[index] - right[index]

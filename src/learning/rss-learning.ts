@@ -2,7 +2,7 @@ import Parser from 'rss-parser'
 import type { KnowledgeInput } from '../shared/types.js'
 import { childLogger } from '../shared/logger.js'
 import { cfg } from '../shared/config.js'
-import { assertSafeFetchUrl } from '../security/url-policy.js'
+import { assertSafeFetchUrl, fetchWithPolicy, type UrlPolicy } from '../security/url-policy.js'
 import { getAllowedLearningDomains, getLearningSources } from './sources.js'
 import type { LearningSource } from './sources.js'
 
@@ -50,11 +50,9 @@ export async function collectLearningFeeds(): Promise<RssLearningResult> {
 }
 
 async function fetchOneFeed(source: LearningSource, allowedDomains: Set<string>): Promise<KnowledgeInput[]> {
-  const safeUrl = await assertSafeFetchUrl(source.url, {
-    allowedDomains,
-    allowHttp: cfg.learningAllowHttp,
-  })
-  const xml  = await fetchText(safeUrl)
+  const policy = { allowedDomains, allowHttp: cfg.learningAllowHttp }
+  const safeUrl = await assertSafeFetchUrl(source.url, policy)
+  const xml  = await fetchText(safeUrl, policy)
   const feed = await new Parser().parseString(xml)
 
   const now = new Date().toISOString()
@@ -90,12 +88,12 @@ async function fetchOneFeed(source: LearningSource, allowedDomains: Set<string>)
     })
 }
 
-async function fetchText(url: URL): Promise<string> {
+async function fetchText(url: URL, policy: UrlPolicy): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), cfg.learningFetchTimeoutMs)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithPolicy(url, policy, {
       signal:  controller.signal,
       headers: {
         'user-agent': 'pac-memory-learning-bot/1.0',
