@@ -21,10 +21,6 @@ const log = childLogger('knowledge-routes')
 
 const BODY_ERROR = { error: 'corpo deve ser um objeto JSON' }
 
-function sanitizeQuery(raw: string): string {
-  return raw.replace(/['"*:()^~]/g, ' ').trim()
-}
-
 /** First validation error of a PATCH body, or null; the UI renders importance as a 0–100% bar. */
 function patchFieldError(f: Record<string, unknown>): string | null {
   for (const key of ['title', 'category'] as const) {
@@ -130,7 +126,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     if (query.length > 500) {
       return reply.status(400).send({ error: 'query deve ter menos de 500 caracteres' })
     }
-    const safeQuery = sanitizeQuery(query)
+    const safeQuery = query.trim()
     if (!safeQuery) return reply.send({ items: [], total: 0, query: '' })
     const lim = boundedInt(limit, 20, 1, 100)
     const off = boundedInt(offset, 0, 0, Number.MAX_SAFE_INTEGER)
@@ -181,7 +177,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     if (query.length > 500) {
       return reply.status(400).send({ error: 'query deve ter menos de 500 caracteres' })
     }
-    const safeQuery = sanitizeQuery(query)
+    const safeQuery = query.trim()
     if (!safeQuery) return reply.send({ items: [], query: '' })
     const lim = boundedInt(limit, 10, 1, 50)
     try {
@@ -204,7 +200,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'question deve ter menos de 500 caracteres' })
     }
 
-    const safeQuestion = sanitizeQuery(question)
+    const safeQuestion = question.trim()
     if (!safeQuestion) return reply.send({ answer: 'Nenhuma pergunta válida enviada.', sources: [] })
 
     const results = searchKnowledge(safeQuestion, boundedInt(limit, 5, 1, 10))

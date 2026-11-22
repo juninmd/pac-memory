@@ -7,6 +7,7 @@ import {
   listActiveRssSources,
   listConfiguredSources,
   searchKnowledge,
+  searchKnowledgePaginated,
   updateSource,
   upsertKnowledge,
 } from '../src/knowledge/repository.js'
@@ -82,6 +83,22 @@ describe('Knowledge Repository', () => {
     const results = searchKnowledge('FTS5 search')
     expect(results.length).toBeGreaterThanOrEqual(1)
     expect(results.some(r => r.title === 'Test Knowledge Entry')).toBe(true)
+  })
+
+  it('searches text with FTS5 punctuation and operators without throwing', () => {
+    upsertKnowledge({ ...sample, title: 'Runtime notes', content: 'node.js C++ R&D e-mail 50% estado! rollout NOT done' })
+    for (const q of ['node.js', 'C++', 'R&D', '50%', 'estado!', 'e-mail', 'rollout NOT', '"unbalanced', 'a:b (x']) {
+      expect(() => searchKnowledge(q)).not.toThrow()
+    }
+    expect(searchKnowledge('node.js').map(r => r.title)).toContain('Runtime notes')
+    expect(searchKnowledge('e-mail').map(r => r.title)).toContain('Runtime notes')
+    expect(searchKnowledgePaginated('C++').total).toBe(1)
+  })
+
+  it('returns no results for a query made only of punctuation or spaces', () => {
+    upsertKnowledge(sample)
+    expect(searchKnowledge('   ')).toEqual([])
+    expect(searchKnowledgePaginated('"').total).toBe(0)
   })
 
   it('returns empty array for no FTS5 match', () => {
