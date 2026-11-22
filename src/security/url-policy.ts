@@ -13,6 +13,7 @@ const PRIVATE_V4_RANGES = [
   [172, 16, 0, 0, 172, 31, 255, 255],
   [192, 168, 0, 0, 192, 168, 255, 255],
   [0, 0, 0, 0, 0, 255, 255, 255],
+  [100, 64, 0, 0, 100, 127, 255, 255],
   [224, 0, 0, 0, 239, 255, 255, 255],
 ]
 
@@ -41,7 +42,18 @@ export function isPrivateAddress(address: string): boolean {
   }
 
   if (ipVersion === 6) {
-    const normalized = address.toLowerCase()
+    // Canonical form: ::ffff:127.0.0.1 -> ::ffff:7f00:1, 0:0:0:0:0:0:0:1 -> ::1
+    let normalized: string
+    try {
+      normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1)
+    } catch {
+      return true // unparseable (e.g. zone id): fail closed
+    }
+    const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(normalized)
+    if (mapped) {
+      const [hi, lo] = [parseInt(mapped[1], 16), parseInt(mapped[2], 16)]
+      return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`)
+    }
     return normalized === '::'
       || normalized === '::1'
       || normalized.startsWith('fc')
