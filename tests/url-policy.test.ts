@@ -24,6 +24,28 @@ describe('URL policy', () => {
   })
 })
 
+describe('isPrivateAddress for alternate IPv6 spellings and CGNAT', () => {
+  it.each([
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+    '0:0:0:0:0:ffff:a00:1',
+    '::FFFF:169.254.169.254',
+    '0:0:0:0:0:0:0:1',
+    '100.64.0.1',
+    '100.127.255.254',
+  ])('blocks %s', (address) => {
+    expect(isPrivateAddress(address)).toBe(true)
+  })
+
+  it('fails closed on an address URL cannot parse (zone id)', () => {
+    expect(isPrivateAddress('fe80::1%eth0')).toBe(true)
+  })
+
+  it.each(['::ffff:8.8.8.8', '2606:4700::1111', '100.128.0.1', '100.63.255.255'])('allows public %s', (address) => {
+    expect(isPrivateAddress(address)).toBe(false)
+  })
+})
+
 describe('fetchWithPolicy redirects', () => {
   const policy = { allowedDomains: new Set(['93.184.215.14', '127.0.0.1']), allowHttp: true }
   const strict = { allowedDomains: new Set(['93.184.215.14']), allowHttp: true }
