@@ -38,7 +38,17 @@ export function bulkUpsert(items: KnowledgeInput[]): number {
   return items.length
 }
 
-export function searchKnowledge(query: string, limit = 20): Knowledge[] {
+/** Free text -> FTS5 query: each word becomes a quoted phrase (implicit AND), so punctuation is never parsed as syntax. */
+export function toFtsQuery(raw: string): string {
+  return raw.split(/\s+/)
+    .filter(t => /[\p{L}\p{N}]/u.test(t))
+    .map(t => `"${t.replace(/"/g, '""')}"`)
+    .join(' ')
+}
+
+export function searchKnowledge(text: string, limit = 20): Knowledge[] {
+  const query = toFtsQuery(text)
+  if (!query) return []
   const db = getDb()
   const rows = db.prepare(`
     SELECT k.* FROM knowledge k
@@ -226,7 +236,9 @@ export function countKnowledgeByCategory(): { category: string; count: number }[
   return db.prepare('SELECT category, COUNT(*) as count FROM knowledge GROUP BY category ORDER BY count DESC').all() as { category: string; count: number }[]
 }
 
-export function searchKnowledgePaginated(query: string, limit = 20, offset = 0): { items: Knowledge[]; total: number } {
+export function searchKnowledgePaginated(text: string, limit = 20, offset = 0): { items: Knowledge[]; total: number } {
+  const query = toFtsQuery(text)
+  if (!query) return { items: [], total: 0 }
   const db = getDb()
   const rows = db.prepare(`
     SELECT k.* FROM knowledge k
@@ -249,8 +261,9 @@ export function searchKnowledgePaginated(query: string, limit = 20, offset = 0):
 }
 
 /** Subset of `ids` that the FTS query matches; bounded by ids.length. */
-export function ftsMatchingIds(query: string, ids: number[]): Set<number> {
-  if (!ids.length) return new Set()
+export function ftsMatchingIds(text: string, ids: number[]): Set<number> {
+  const query = toFtsQuery(text)
+  if (!ids.length || !query) return new Set()
   const rows = getDb().prepare(`
     SELECT rowid AS id FROM knowledge_fts
     WHERE knowledge_fts MATCH ? AND rowid IN (${ids.map(() => '?').join(',')})

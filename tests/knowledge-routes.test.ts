@@ -127,3 +127,20 @@ describe('PATCH /knowledge/:id field validation', () => {
     expect(res.body.item.metadata).toEqual({ tag: 'x' })
   })
 })
+
+describe('POST /search with punctuation', () => {
+  beforeEach(() => {
+    getDb(':memory:')
+    upsertKnowledge({ ...entry(1, 'alpha'), content: 'deploy node.js on C++ hosts' })
+  })
+  afterEach(() => closeDb())
+
+  it('answers 200 with matches instead of a 500 from FTS5 syntax', async () => {
+    const app = Fastify()
+    await app.register(knowledgeRoutes)
+    const res = await app.inject({ method: 'POST', url: '/search', payload: { query: 'node.js' } })
+    await app.close()
+    expect(res.statusCode).toBe(200)
+    expect(res.json().total).toBe(1)
+  })
+})
