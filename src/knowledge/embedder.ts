@@ -56,18 +56,17 @@ export async function findRelatedByEmbedding(id: number, limit = 5): Promise<Kno
     SELECT ke.knowledge_id, ke.vector
     FROM knowledge_embeddings ke
     WHERE ke.knowledge_id != ?
-  `).all(id) as { knowledge_id: number; vector: string }[]
+  `).iterate(id) as IterableIterator<{ knowledge_id: number; vector: string }>
 
-  const scored = rows
-    .map(row => ({
-      id:    row.knowledge_id,
-      score: cosineSimilarity(targetVec, JSON.parse(row.vector) as number[]),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+  // Score row by row: .all() held every vector's JSON text in memory at once.
+  const scored: { id: number; score: number }[] = []
+  for (const row of rows) {
+    scored.push({ id: row.knowledge_id, score: cosineSimilarity(targetVec, JSON.parse(row.vector) as number[]) })
+  }
+  const top = scored.sort((a, b) => b.score - a.score).slice(0, limit)
 
   const results: Knowledge[] = []
-  for (const { id: kid } of scored) {
+  for (const { id: kid } of top) {
     const entry = getKnowledgeById(kid)
     if (entry) results.push(entry)
   }
